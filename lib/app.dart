@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'core/di/injection_container.dart' as di;
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
-import 'routes/routes.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -23,7 +23,19 @@ class App extends StatelessWidget {
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        routerConfig: createRouter(),
+        routerConfig: GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const Center(child: Text('Home')),
+            ),
+            GoRoute(
+              path: '/login',
+              builder: (context, state) => const Center(child: Text('Login')),
+            ),
+          ],
+        ),
       ),
     );
   }

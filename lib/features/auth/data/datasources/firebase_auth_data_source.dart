@@ -7,12 +7,13 @@ abstract class FirebaseAuthDataSource {
   Future<UserModel> signInWithGoogle();
   Future<void> signOut();
   UserModel? getCurrentUser();
+  bool isAuthenticated();
 }
 
 class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   final firebase.FirebaseAuth firebaseAuth;
   final GoogleSignIn googleSignIn;
-  
+
   FirebaseAuthDataSourceImpl({
     required this.firebaseAuth,
     required this.googleSignIn,
@@ -56,7 +57,12 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     }
     return null;
   }
-}
+
+  @override
+  Future<void> signOut() async {
+    await googleSignIn.signOut();
+    await firebaseAuth.signOut();
+  }
 
   @override
   bool isAuthenticated() {

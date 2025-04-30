@@ -26,14 +26,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    final result = await isAuthenticatedUseCase(const NoParams());
+    final isAuthResult = await isAuthenticatedUseCase(const NoParams());
+
+    isAuthResult.fold((failure) => emit(AuthError(message: failure.message)), (
+      isAuth,
+    ) {
+      if (isAuth) {
+        emit(const Authenticated());
+      } else {
+        emit(Unauthenticated());
+      }
+    });
+  }
+
+  Future<void> _onSignInWithGoogle(
+    SignInWithGoogleEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    final result = await signInWithGoogleUseCase(const NoParams());
 
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
-      (user) =>
-          user != null
-              ? emit(Authenticated(user: user))
-              : emit(Unauthenticated()),
+      (user) => emit(Authenticated(user: user)),
     );
   }
 

@@ -8,14 +8,13 @@ abstract class AppException implements Exception {
 }
 
 class ServerException extends AppException {
-  const ServerException([String message = 'Server error occurred'])
-    : super(message);
+  const ServerException([super.message = 'Server error occurred']);
 }
 
 class DatabaseException extends AppException {
   final dynamic cause;
 
-  const DatabaseException(String message, [this.cause]) : super(message);
+  const DatabaseException(super.message, [this.cause]);
 
   @override
   String toString() =>
@@ -23,11 +22,9 @@ class DatabaseException extends AppException {
 }
 
 class AuthException extends AppException {
-  const AuthException([String message = 'Authentication error occurred'])
-    : super(message);
+  const AuthException([super.message = 'Authentication error occurred']);
 }
 
 class CacheException extends AppException {
-  const CacheException([String message = 'Cache error occurred'])
-    : super(message);
+  const CacheException([super.message = 'Cache error occurred']);
 }

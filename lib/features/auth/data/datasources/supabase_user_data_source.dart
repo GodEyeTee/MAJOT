@@ -27,10 +27,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
       final response =
           await supabaseClient.from('users').select().eq('id', id).single();
 
-      if (response == null) {
-        return null;
-      }
-
       return UserModel.fromJson(response);
     } catch (e) {
       throw DatabaseException('Failed to get user: ${e.toString()}', e);
