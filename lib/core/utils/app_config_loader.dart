@@ -14,10 +14,18 @@ class AppConfig {
       final String configString = await rootBundle.loadString(path);
       final Map<String, dynamic> config = json.decode(configString);
 
-      return AppConfig(
-        supabaseUrl: config['supabaseUrl'] ?? '',
-        anonKey: config['anonKey'] ?? '',
-      );
+      // ตรวจสอบว่ามี URL ใน config หรือไม่
+      final url = config['supabaseUrl'] ?? '';
+      if (url.isEmpty) {
+        throw Exception('Supabase URL is empty or not found in config');
+      }
+
+      // ตรวจสอบว่า URL มีรูปแบบที่ถูกต้องหรือไม่
+      if (!url.startsWith('https://')) {
+        throw Exception('Supabase URL must start with https://');
+      }
+
+      return AppConfig(supabaseUrl: url, anonKey: config['anonKey'] ?? '');
     } catch (e) {
       throw Exception('Failed to load app configuration: $e');
     }

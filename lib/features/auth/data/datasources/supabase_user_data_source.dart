@@ -15,8 +15,25 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   @override
   Future<void> saveUser(UserModel user) async {
     try {
-      await supabaseClient.from('users').upsert(user.toJson());
+      // เพิ่มการตรวจสอบการเชื่อมต่อ
+      if (supabaseClient.auth.currentSession == null) {
+        // ถ้าไม่มี session ให้ใช้ anon key
+        print('Warning: No Supabase session, using anon key');
+      }
+
+      print('Saving user to Supabase: ${user.id}, ${user.email}');
+
+      // ระบุตาราง 'users' ชัดเจน และใช้ upsert
+      await supabaseClient.from('users').upsert({
+        'id': user.id,
+        'email': user.email,
+        'full_name': user.displayName,
+        'role': 'user', // กำหนดค่าเริ่มต้น
+      }, onConflict: 'id');
+
+      print('User saved successfully');
     } catch (e) {
+      print('Supabase error details: $e');
       throw DatabaseException('Failed to save user: ${e.toString()}', e);
     }
   }

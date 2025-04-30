@@ -18,9 +18,20 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> signInWithGoogle() async {
     try {
-      final user = await firebaseAuthDataSource.signInWithGoogle();
-      await supabaseUserDataSource.saveUser(user);
-      return Right(user);
+      // ทดสอบการเชื่อมต่อกับ Supabase ก่อน
+      try {
+        final user = await firebaseAuthDataSource.signInWithGoogle();
+        try {
+          await supabaseUserDataSource.saveUser(user);
+          return Right(user);
+        } catch (supabaseError) {
+          // ถ้า Supabase มีปัญหา แต่เข้าสู่ระบบ Firebase ได้ ให้ทำงานต่อไป
+          print('Warning: Failed to save user to Supabase: $supabaseError');
+          return Right(user);
+        }
+      } catch (firebaseError) {
+        return Left(AuthFailure('Authentication failed: $firebaseError'));
+      }
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
     } on DatabaseException catch (e) {
