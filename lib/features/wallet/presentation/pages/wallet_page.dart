@@ -1,3 +1,4 @@
+// lib/features/wallet/presentation/pages/wallet_page.dart
 import 'package:flutter/material.dart';
 
 class WalletPage extends StatelessWidget {

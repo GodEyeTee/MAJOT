@@ -1,3 +1,4 @@
+// lib/features/analytics/presentation/pages/analytics_page.dart
 import 'package:flutter/material.dart';
 
 class AnalyticsPage extends StatelessWidget {

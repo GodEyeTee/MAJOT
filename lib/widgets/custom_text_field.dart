@@ -109,7 +109,12 @@ class CustomTextField extends StatelessWidget {
             fillColor:
                 enabled
                     ? theme.inputDecorationTheme.fillColor
-                    : theme.disabledColor.withOpacity(0.1),
+                    : Color.fromRGBO(
+                      theme.disabledColor.red,
+                      theme.disabledColor.green,
+                      theme.disabledColor.blue,
+                      0.1,
+                    ),
           ),
         ),
       ],

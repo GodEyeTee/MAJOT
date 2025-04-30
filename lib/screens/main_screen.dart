@@ -1,12 +1,16 @@
+// lib/screens/main_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
-import '../pages/home_page.dart';
-import '../pages/wallet_page.dart';
-import '../pages/analytics_page.dart';
-import '../pages/settings_page.dart';
+import '../features/home/presentation/pages/home_page.dart';
+import '../features/wallet/presentation/pages/wallet_page.dart';
+import '../features/analytics/presentation/pages/analytics_page.dart';
+import '../features/settings/presentation/pages/settings_page.dart';
+import '../features/hotel_booking/presentation/pages/hotel_search_page.dart';
+import '../features/shopping/presentation/pages/products_page.dart';
+import '../features/ocr_scanner/presentation/pages/scanner_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,49 +21,27 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  final List<Widget> _pages = [
+    const HomePage(),
+    const HotelSearchPage(),
+    const ProductsPage(),
+    const ScannerPage(),
+    const WalletPage(),
+    const AnalyticsPage(),
+    const SettingsPage(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-
-    // Using GoRouter to navigate to the corresponding route
-    switch (index) {
-      case 0:
-        context.go('/');
-        break;
-      case 1:
-        context.go('/wallet');
-        break;
-      case 2:
-        context.go('/analytics');
-        break;
-      case 3:
-        context.go('/settings');
-        break;
-    }
-  }
-
-  Widget _getPage() {
-    switch (_selectedIndex) {
-      case 0:
-        return const HomePage();
-      case 1:
-        return const WalletPage();
-      case 2:
-        return const AnalyticsPage();
-      case 3:
-        return const SettingsPage();
-      default:
-        return const HomePage();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App Name'),
+        title: const Text('Mytest App'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -69,7 +51,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: _getPage(),
+      body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
@@ -78,6 +60,15 @@ class _MainScreenState extends State<MainScreen> {
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.hotel), label: 'Hotels'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart),
+            label: 'Shop',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.document_scanner),
+            label: 'Scanner',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.wallet), label: 'Wallet'),
           BottomNavigationBarItem(
             icon: Icon(Icons.analytics),
