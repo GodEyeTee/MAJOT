@@ -2,6 +2,16 @@
 
 multifuntion aplication
 
+## data base sql editor 
+```CREATE TABLE users (
+  id uuid PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  role TEXT DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
 ## Getting Started
 
 RBAC have 3 role :admin,editor,user
