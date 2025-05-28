@@ -76,7 +76,7 @@ Future<void> _validateCriticalDependencies() async {
 
   // Validate Firebase
   validationTasks.add(_validateFirebase());
-  
+
   // Validate Supabase
   validationTasks.add(_validateSupabase());
 
@@ -108,14 +108,14 @@ Future<void> _validateFirebase() async {
 Future<void> _validateSupabase() async {
   try {
     final client = Supabase.instance.client;
-    
+
     // Test connection with a simple query
     await client
         .from('users')
         .select('id')
         .limit(1)
         .timeout(const Duration(seconds: 5));
-        
+
     print('✅ Supabase validation successful');
   } catch (e) {
     print('⚠️ Supabase validation failed: $e - App will work in offline mode');
@@ -191,7 +191,6 @@ Future<void> _registerCoreServices() async {
 
     sl.registerLazySingleton<RBACService>(() => RBACService());
     print('✅ RBAC Service registered');
-
   } catch (e) {
     print('❌ Failed to register core services: $e');
     rethrow;
@@ -213,9 +212,7 @@ Future<void> _registerAuthFeature() async {
     print('✅ Firebase Auth Data Source registered');
 
     sl.registerLazySingleton<SupabaseUserDataSource>(
-      () => SupabaseUserDataSourceImpl(
-        supabaseClient: sl<SupabaseClient>(),
-      ),
+      () => SupabaseUserDataSourceImpl(supabaseClient: sl<SupabaseClient>()),
     );
     print('✅ Supabase User Data Source registered');
 
@@ -234,9 +231,7 @@ Future<void> _registerAuthFeature() async {
     );
     print('✅ Sign In With Google Use Case registered');
 
-    sl.registerLazySingleton<SignOut>(
-      () => SignOut(sl<AuthRepository>()),
-    );
+    sl.registerLazySingleton<SignOut>(() => SignOut(sl<AuthRepository>()));
     print('✅ Sign Out Use Case registered');
 
     sl.registerLazySingleton<IsAuthenticated>(
@@ -260,7 +255,6 @@ Future<void> _registerAuthFeature() async {
       ),
     );
     print('✅ Auth BLoC registered');
-
   } catch (e) {
     print('❌ Failed to register auth feature: $e');
     rethrow;
@@ -274,7 +268,8 @@ Future<void> _validateRegistrations() async {
   final validationResults = <String, bool>{};
 
   // Define critical services to validate
-  final validations = <String, Future<bool>>[
+  final validations = <String, Future<bool>>{
+    // Map, not List
     'FirebaseAuth': _validateService<FirebaseAuth>(),
     'SupabaseClient': _validateService<SupabaseClient>(),
     'GoogleSignIn': _validateService<GoogleSignIn>(),
@@ -289,11 +284,11 @@ Future<void> _validateRegistrations() async {
     'IsAuthenticated': _validateService<IsAuthenticated>(),
     'GetCurrentUser': _validateService<GetCurrentUser>(),
     'AuthBloc': _validateService<AuthBloc>(),
-  ];
+  };
 
   // Run all validations concurrently
   final results = await Future.wait(validations.values);
-  
+
   // Map results
   int index = 0;
   for (final serviceName in validations.keys) {
@@ -307,18 +302,21 @@ Future<void> _validateRegistrations() async {
   }
 
   // Check if all critical services are registered
-  final failedServices = validationResults.entries
-      .where((entry) => !entry.value)
-      .map((entry) => entry.key)
-      .toList();
+  final failedServices =
+      validationResults.entries
+          .where((entry) => !entry.value)
+          .map((entry) => entry.key)
+          .toList();
 
   if (failedServices.isNotEmpty) {
-    throw Exception('Critical services validation failed: ${failedServices.join(', ')}');
+    throw Exception(
+      'Critical services validation failed: ${failedServices.join(', ')}',
+    );
   }
 
   // Additional connectivity validation
   await _validateConnectivity();
-  
+
   print('✅ All service registrations validated successfully');
 }
 
@@ -340,7 +338,9 @@ Future<void> _validateConnectivity() async {
     if (supabaseDataSource is SupabaseUserDataSourceImpl) {
       final isConnected = await supabaseDataSource.validateConnection();
       if (!isConnected) {
-        print('⚠️ Supabase connectivity validation failed - App will work in offline mode');
+        print(
+          '⚠️ Supabase connectivity validation failed - App will work in offline mode',
+        );
       } else {
         print('✅ Supabase connectivity validated');
       }
@@ -354,7 +354,7 @@ Future<void> _validateConnectivity() async {
 Future<void> _clearSensitiveData() async {
   // Clear any temporary initialization data
   // This would include any debug information, temporary tokens, etc.
-  
+
   if (!_isProduction) {
     print('🧹 Sensitive data clearing skipped in development mode');
     return;
@@ -365,7 +365,7 @@ Future<void> _clearSensitiveData() async {
     // Clear any cached sensitive data
     // Reset temporary security contexts
     // Clean up debug traces
-    
+
     print('🧹 Sensitive data cleared');
   } catch (e) {
     print('⚠️ Failed to clear sensitive data: $e');
@@ -391,7 +391,7 @@ Map<String, dynamic> getDependencyHealthStatus() {
   // Check service registrations
   final services = [
     'FirebaseAuth',
-    'SupabaseClient', 
+    'SupabaseClient',
     'GoogleSignIn',
     'InternetConnectionChecker',
     'NetworkInfo',
@@ -458,7 +458,7 @@ Map<String, dynamic> getDependencyHealthStatus() {
           isRegistered = sl.isRegistered<AuthBloc>();
           break;
       }
-      
+
       healthStatus['services'][service] = isRegistered;
       if (isRegistered) registeredCount++;
     } catch (e) {
@@ -470,10 +470,16 @@ Map<String, dynamic> getDependencyHealthStatus() {
   healthStatus['performance'] = {
     'total_services': services.length,
     'registered_services': registeredCount,
-    'registration_rate': (registeredCount / services.length * 100).toStringAsFixed(1) + '%',
-    'health_score': registeredCount == services.length ? 'excellent' : 
-                   registeredCount > services.length * 0.8 ? 'good' : 
-                   registeredCount > services.length * 0.5 ? 'fair' : 'poor',
+    'registration_rate':
+        (registeredCount / services.length * 100).toStringAsFixed(1) + '%',
+    'health_score':
+        registeredCount == services.length
+            ? 'excellent'
+            : registeredCount > services.length * 0.8
+            ? 'good'
+            : registeredCount > services.length * 0.5
+            ? 'fair'
+            : 'poor',
   };
 
   return healthStatus;
@@ -507,7 +513,7 @@ Map<String, dynamic> getServiceDetails() {
       'health_checks': 'enabled',
       'performance_tracking': 'enabled',
       'error_reporting': 'filtered',
-    }
+    },
   };
 }
 
@@ -518,7 +524,7 @@ bool get _isProduction => const bool.fromEnvironment('dart.vm.product');
 Future<void> cleanup() async {
   try {
     print('🧹 Starting DI Container cleanup...');
-    
+
     // Dispose any resources that need cleanup
     if (sl.isRegistered<SupabaseUserDataSource>()) {
       final supabaseDataSource = sl<SupabaseUserDataSource>();
@@ -526,10 +532,10 @@ Future<void> cleanup() async {
         await supabaseDataSource.dispose();
       }
     }
-    
+
     // Reset the container
     await sl.reset();
-    
+
     print('✅ DI Container cleaned up successfully');
   } catch (e) {
     print('⚠️ Error during cleanup: $e');

@@ -8,6 +8,7 @@ import '../datasources/firebase_auth_data_source.dart';
 import '../datasources/supabase_user_data_source.dart';
 import '../models/user_model.dart';
 import 'dart:async';
+import '../../../../services/rbac/role_manager.dart';
 
 /// Enhanced authentication repository with comprehensive security features
 /// Implements dual-layer authentication (Firebase + Supabase) with fallback mechanisms
@@ -195,7 +196,7 @@ class AuthRepositoryImpl implements AuthRepository {
           print('✅ Google sign-in successful: ${enrichedUser.email}');
         }
 
-        return enrichedUser;
+        return Right(enrichedUser);
       } on AuthException catch (e) {
         _recordFailedAttempt();
         _logSecurityEvent('google_signin_failed', {'error': e.message});
@@ -234,7 +235,7 @@ class AuthRepositoryImpl implements AuthRepository {
           print('✅ Sign-out successful');
         }
 
-        return null;
+        return const Right(null);
       } on AuthException catch (e) {
         _logSecurityEvent('signout_failed', {'error': e.message});
         throw e;
@@ -331,7 +332,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'fields_updated': updateData.keys.toList(),
         });
 
-        return response;
+        return Right(response);
       } on DatabaseException catch (e) {
         throw e;
       } catch (e) {
@@ -368,7 +369,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'updated_by': updatedBy,
         });
 
-        return updatedUser;
+        return Right(updatedUser);
       } on DatabaseException catch (e) {
         throw e;
       } catch (e) {
@@ -566,4 +567,52 @@ extension SupabaseUserDataSourceExtensions on SupabaseUserDataSource {
     // This would be implemented in the actual data source
     throw UnimplementedError('User search not implemented');
   }
+}
+
+class UserStatistics {
+  final int totalUsers;
+  final int activeUsers;
+  final DateTime lastUpdated;
+
+  const UserStatistics({
+    required this.totalUsers,
+    required this.activeUsers,
+    required this.lastUpdated,
+  });
+}
+
+class UserQuery {
+  final String? searchTerm;
+  final UserRole? role;
+  final int limit;
+  final int offset;
+
+  const UserQuery({
+    this.searchTerm,
+    this.role,
+    this.limit = 50,
+    this.offset = 0,
+  });
+}
+
+class UserProfileUpdateRequest {
+  final String? displayName;
+  final String? phoneNumber;
+  final String? photoURL;
+
+  const UserProfileUpdateRequest({
+    this.displayName,
+    this.phoneNumber,
+    this.photoURL,
+  });
+
+  bool get isEmpty =>
+      displayName == null && phoneNumber == null && photoURL == null;
+
+  Map<String, dynamic> toJson() => {
+    if (displayName != null) 'display_name': displayName,
+    if (phoneNumber != null) 'phone_number': phoneNumber,
+    if (photoURL != null) 'photo_url': photoURL,
+    'updated_at': DateTime.now().toIso8601String(),
+  };
 }
