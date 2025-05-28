@@ -15,10 +15,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOut signOutUseCase;
   final IsAuthenticated isAuthenticatedUseCase;
   final GetCurrentUser getCurrentUserUseCase;
-  final AuthRepository authRepository; // เพิ่มนี้เพื่อ listen authStateChanges
+  final AuthRepository authRepository;
   final RBACService _rbacService = RBACService();
 
   late final StreamSubscription _authStateSubscription;
+  bool _isInitialized = false;
 
   AuthBloc({
     required this.signInWithGoogleUseCase,
@@ -32,7 +33,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SignOutEvent>(_onSignOut);
     on<AuthStateChangedEvent>(_onAuthStateChanged);
 
-    // Listen to auth state changes แทนการ check manual
+    // Listen to auth state changes
     _authStateSubscription = authRepository.authStateChanges.listen((
       userResult,
     ) {
@@ -52,6 +53,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
+    _isInitialized = true;
+
     if (event.user != null) {
       _rbacService.setCurrentUser(event.user);
       emit(Authenticated(user: event.user));
@@ -65,8 +68,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     CheckAuthStatusEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(AuthLoading());
-    // ไม่ต้องทำอะไร เพราะ authStateChanges จะจัดการให้
+    if (!_isInitialized) {
+      emit(AuthLoading());
+    }
+
+    // ถ้า initialized แล้ว และยังไม่มี current state ที่ชัดเจน
+    // ให้ check อีกครั้ง
+    if (_isInitialized && state is AuthInitial) {
+      final result = await getCurrentUserUseCase(const NoParams());
+      result.fold((failure) => emit(AuthError(message: failure.message)), (
+        user,
+      ) {
+        if (user != null) {
+          _rbacService.setCurrentUser(user);
+          emit(Authenticated(user: user));
+        } else {
+          emit(Unauthenticated());
+        }
+      });
+    }
   }
 
   Future<void> _onSignInWithGoogle(
@@ -77,7 +97,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final result = await signInWithGoogleUseCase(const NoParams());
 
     result.fold((failure) => emit(AuthError(message: failure.message)), (user) {
-      // อย่าต้อง emit ที่นี่ เพราะ authStateChanges จะจัดการ
+      // State จะถูก update ผ่าน authStateChanges stream automatically
+      print('✅ Sign in successful: ${user.email}');
     });
   }
 
@@ -86,9 +107,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final result = await signOutUseCase(const NoParams());
 
     result.fold((failure) => emit(AuthError(message: failure.message)), (_) {
-      // อย่าต้อง emit ที่นี่ เพราะ authStateChanges จะจัดการ
+      // State จะถูก update ผ่าน authStateChanges stream automatically
+      print('✅ Sign out successful');
     });
   }
+
+  // Getter สำหรับ router
+  bool get isInitialized => _isInitialized;
+  bool get isAuthenticated => state is Authenticated;
 
   @override
   Future<void> close() {
