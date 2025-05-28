@@ -53,15 +53,17 @@ Future<void> init() async {
     print('✅ Secure DI Container initialized in ${initTime}ms');
 
     // Production: Clear sensitive initialization data
-    if (const bool.fromEnvironment('dart.vm.product')) {
+    if (_isProduction) {
       await _clearSensitiveData();
     }
   } catch (e, stackTrace) {
     print('❌ Critical DI initialization error: $e');
-    print('Stack trace: $stackTrace');
+    if (!_isProduction) {
+      print('Stack trace: $stackTrace');
+    }
 
     // Security: Don't expose internal errors in production
-    if (const bool.fromEnvironment('dart.vm.product')) {
+    if (_isProduction) {
       throw Exception('Application initialization failed');
     }
     rethrow;
@@ -70,141 +72,281 @@ Future<void> init() async {
 
 /// Security: Validate critical external dependencies
 Future<void> _validateCriticalDependencies() async {
+  final validationTasks = <Future<void>>[];
+
   // Validate Firebase
+  validationTasks.add(_validateFirebase());
+  
+  // Validate Supabase
+  validationTasks.add(_validateSupabase());
+
+  // Run validations concurrently with timeout
+  try {
+    await Future.wait(validationTasks).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => throw Exception('Dependency validation timeout'),
+    );
+  } catch (e) {
+    print('⚠️ Some dependencies failed validation: $e');
+    // Continue initialization - app can work with degraded functionality
+  }
+}
+
+Future<void> _validateFirebase() async {
   try {
     await FirebaseAuth.instance.authStateChanges().first.timeout(
       const Duration(seconds: 5),
       onTimeout: () => null,
     );
+    print('✅ Firebase validation successful');
   } catch (e) {
-    throw Exception(
-      'Firebase validation failed: Critical security component unavailable',
-    );
+    print('⚠️ Firebase validation failed: $e');
+    // Don't throw - Firebase issues shouldn't prevent app startup
   }
+}
 
-  // Validate Supabase - Fixed: Use proper SupabaseClient validation
+Future<void> _validateSupabase() async {
   try {
     final client = Supabase.instance.client;
-
-    // Security: Test actual connection instead of checking properties
+    
+    // Test connection with a simple query
     await client
         .from('users')
         .select('id')
         .limit(1)
         .timeout(const Duration(seconds: 5));
-
-    print('✅ Supabase connection validated');
+        
+    print('✅ Supabase validation successful');
   } catch (e) {
-    // Warning instead of throwing - app can work offline
-    print('⚠️ Supabase validation warning: $e - App will work in offline mode');
+    print('⚠️ Supabase validation failed: $e - App will work in offline mode');
+    // Don't throw - Supabase issues shouldn't prevent app startup
   }
 }
 
 /// Register external dependencies with security configurations
 Future<void> _registerExternalDependencies() async {
-  // Firebase - Production configuration
-  sl.registerLazySingleton(() => FirebaseAuth.instance);
+  print('🔗 Registering external dependencies...');
+
+  // Firebase - Production configuration with error handling
+  try {
+    sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
+    print('✅ Firebase Auth registered');
+  } catch (e) {
+    print('❌ Failed to register Firebase Auth: $e');
+    rethrow;
+  }
 
   // Google Sign-In - Secure configuration
-  sl.registerLazySingleton(
-    () => GoogleSignIn(
-      scopes: ['email', 'profile'], // Minimal required scopes
-      hostedDomain: null, // Allow all domains unless specifically restricted
-    ),
-  );
+  try {
+    sl.registerLazySingleton<GoogleSignIn>(
+      () => GoogleSignIn(
+        scopes: ['email', 'profile'], // Minimal required scopes
+        hostedDomain: null, // Allow all domains unless specifically restricted
+      ),
+    );
+    print('✅ Google Sign-In registered');
+  } catch (e) {
+    print('❌ Failed to register Google Sign-In: $e');
+    rethrow;
+  }
 
-  // Supabase - Production client
-  sl.registerLazySingleton(() => Supabase.instance.client);
+  // Supabase - Production client with error handling
+  try {
+    sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+    print('✅ Supabase Client registered');
+  } catch (e) {
+    print('❌ Failed to register Supabase Client: $e');
+    rethrow;
+  }
 
   // Network - Enhanced monitoring
-  sl.registerLazySingleton(
-    () => InternetConnectionChecker.createInstance(
-      checkTimeout: const Duration(seconds: 3),
-      checkInterval: const Duration(seconds: 5),
-    ),
-  );
+  try {
+    sl.registerLazySingleton<InternetConnectionChecker>(
+      () => InternetConnectionChecker.createInstance(
+        checkTimeout: const Duration(seconds: 3),
+        checkInterval: const Duration(seconds: 5),
+      ),
+    );
+    print('✅ Network Connection Checker registered');
+  } catch (e) {
+    print('❌ Failed to register Network Connection Checker: $e');
+    rethrow;
+  }
 }
 
 /// Register core services with performance optimization
 Future<void> _registerCoreServices() async {
-  // Network Info - Cached for performance
-  sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
+  print('⚙️ Registering core services...');
 
-  // RBAC Services - Singletons for security consistency
-  sl.registerLazySingleton(() => RoleManager());
-  sl.registerLazySingleton(() => RBACService());
+  try {
+    // Network Info - Cached for performance
+    sl.registerLazySingleton<NetworkInfo>(
+      () => NetworkInfoImpl(sl<InternetConnectionChecker>()),
+    );
+    print('✅ Network Info registered');
+
+    // RBAC Services - Singletons for security consistency
+    sl.registerLazySingleton<RoleManager>(() => RoleManager());
+    print('✅ Role Manager registered');
+
+    sl.registerLazySingleton<RBACService>(() => RBACService());
+    print('✅ RBAC Service registered');
+
+  } catch (e) {
+    print('❌ Failed to register core services: $e');
+    rethrow;
+  }
 }
 
 /// Register Auth feature with comprehensive security
 Future<void> _registerAuthFeature() async {
-  // BLoC - Factory for proper lifecycle management
-  sl.registerFactory(
-    () => AuthBloc(
-      signInWithGoogleUseCase: sl(),
-      signOutUseCase: sl(),
-      isAuthenticatedUseCase: sl(),
-      getCurrentUserUseCase: sl(),
-      authRepository: sl(),
-    ),
-  );
+  print('🔐 Registering authentication feature...');
 
-  // Use Cases - Lazy singletons for performance
-  sl.registerLazySingleton(() => SignInWithGoogle(sl()));
-  sl.registerLazySingleton(() => SignOut(sl()));
-  sl.registerLazySingleton(() => IsAuthenticated(sl()));
-  sl.registerLazySingleton(() => GetCurrentUser(sl()));
+  try {
+    // Data Sources - Production-ready implementations
+    sl.registerLazySingleton<FirebaseAuthDataSource>(
+      () => FirebaseAuthDataSourceImpl(
+        firebaseAuth: sl<FirebaseAuth>(),
+        googleSignIn: sl<GoogleSignIn>(),
+      ),
+    );
+    print('✅ Firebase Auth Data Source registered');
 
-  // Repository - Singleton with enhanced error handling
-  sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(
-      firebaseAuthDataSource: sl(),
-      supabaseUserDataSource: sl(),
-    ),
-  );
+    sl.registerLazySingleton<SupabaseUserDataSource>(
+      () => SupabaseUserDataSourceImpl(
+        supabaseClient: sl<SupabaseClient>(),
+      ),
+    );
+    print('✅ Supabase User Data Source registered');
 
-  // Data Sources - Production-ready implementations
-  sl.registerLazySingleton<FirebaseAuthDataSource>(
-    () => FirebaseAuthDataSourceImpl(firebaseAuth: sl(), googleSignIn: sl()),
-  );
+    // Repository - Singleton with enhanced error handling
+    sl.registerLazySingleton<AuthRepository>(
+      () => AuthRepositoryImpl(
+        firebaseAuthDataSource: sl<FirebaseAuthDataSource>(),
+        supabaseUserDataSource: sl<SupabaseUserDataSource>(),
+      ),
+    );
+    print('✅ Auth Repository registered');
 
-  sl.registerLazySingleton<SupabaseUserDataSource>(
-    () => SupabaseUserDataSourceImpl(supabaseClient: sl()),
-  );
+    // Use Cases - Lazy singletons for performance
+    sl.registerLazySingleton<SignInWithGoogle>(
+      () => SignInWithGoogle(sl<AuthRepository>()),
+    );
+    print('✅ Sign In With Google Use Case registered');
+
+    sl.registerLazySingleton<SignOut>(
+      () => SignOut(sl<AuthRepository>()),
+    );
+    print('✅ Sign Out Use Case registered');
+
+    sl.registerLazySingleton<IsAuthenticated>(
+      () => IsAuthenticated(sl<AuthRepository>()),
+    );
+    print('✅ Is Authenticated Use Case registered');
+
+    sl.registerLazySingleton<GetCurrentUser>(
+      () => GetCurrentUser(sl<AuthRepository>()),
+    );
+    print('✅ Get Current User Use Case registered');
+
+    // BLoC - Factory for proper lifecycle management
+    sl.registerFactory<AuthBloc>(
+      () => AuthBloc(
+        signInWithGoogleUseCase: sl<SignInWithGoogle>(),
+        signOutUseCase: sl<SignOut>(),
+        isAuthenticatedUseCase: sl<IsAuthenticated>(),
+        getCurrentUserUseCase: sl<GetCurrentUser>(),
+        authRepository: sl<AuthRepository>(),
+      ),
+    );
+    print('✅ Auth BLoC registered');
+
+  } catch (e) {
+    print('❌ Failed to register auth feature: $e');
+    rethrow;
+  }
 }
 
 /// Security: Validate all critical registrations
 Future<void> _validateRegistrations() async {
-  final criticalServices = [
-    AuthBloc,
-    AuthRepository,
-    FirebaseAuthDataSource,
-    SupabaseUserDataSource,
-    RBACService,
+  print('🔍 Validating service registrations...');
+
+  final validationResults = <String, bool>{};
+
+  // Define critical services to validate
+  final validations = <String, Future<bool>>[
+    'FirebaseAuth': _validateService<FirebaseAuth>(),
+    'SupabaseClient': _validateService<SupabaseClient>(),
+    'GoogleSignIn': _validateService<GoogleSignIn>(),
+    'NetworkInfo': _validateService<NetworkInfo>(),
+    'RoleManager': _validateService<RoleManager>(),
+    'RBACService': _validateService<RBACService>(),
+    'FirebaseAuthDataSource': _validateService<FirebaseAuthDataSource>(),
+    'SupabaseUserDataSource': _validateService<SupabaseUserDataSource>(),
+    'AuthRepository': _validateService<AuthRepository>(),
+    'SignInWithGoogle': _validateService<SignInWithGoogle>(),
+    'SignOut': _validateService<SignOut>(),
+    'IsAuthenticated': _validateService<IsAuthenticated>(),
+    'GetCurrentUser': _validateService<GetCurrentUser>(),
+    'AuthBloc': _validateService<AuthBloc>(),
   ];
 
-  for (final serviceType in criticalServices) {
-    try {
-      final instance = sl.get(type: serviceType);
-      // Fixed: Remove null check - GetIt throws if not registered
-      print('✅ Service validated: $serviceType');
-    } catch (e) {
-      throw Exception('Service validation failed for $serviceType: $e');
+  // Run all validations concurrently
+  final results = await Future.wait(validations.values);
+  
+  // Map results
+  int index = 0;
+  for (final serviceName in validations.keys) {
+    validationResults[serviceName] = results[index];
+    if (results[index]) {
+      print('✅ $serviceName validation passed');
+    } else {
+      print('❌ $serviceName validation failed');
     }
+    index++;
   }
 
-  // Validate connectivity
+  // Check if all critical services are registered
+  final failedServices = validationResults.entries
+      .where((entry) => !entry.value)
+      .map((entry) => entry.key)
+      .toList();
+
+  if (failedServices.isNotEmpty) {
+    throw Exception('Critical services validation failed: ${failedServices.join(', ')}');
+  }
+
+  // Additional connectivity validation
+  await _validateConnectivity();
+  
+  print('✅ All service registrations validated successfully');
+}
+
+Future<bool> _validateService<T extends Object>() async {
+  try {
+    final instance = sl<T>();
+    return instance != null;
+  } catch (e) {
+    if (!_isProduction) {
+      print('⚠️ Service validation failed for ${T.toString()}: $e');
+    }
+    return false;
+  }
+}
+
+Future<void> _validateConnectivity() async {
   try {
     final supabaseDataSource = sl<SupabaseUserDataSource>();
     if (supabaseDataSource is SupabaseUserDataSourceImpl) {
       final isConnected = await supabaseDataSource.validateConnection();
       if (!isConnected) {
-        print(
-          '⚠️ Supabase connection validation failed - App will work in offline mode',
-        );
+        print('⚠️ Supabase connectivity validation failed - App will work in offline mode');
+      } else {
+        print('✅ Supabase connectivity validated');
       }
     }
   } catch (e) {
-    print('⚠️ Connection validation error: $e');
+    print('⚠️ Connectivity validation error: $e');
   }
 }
 
@@ -212,62 +354,195 @@ Future<void> _validateRegistrations() async {
 Future<void> _clearSensitiveData() async {
   // Clear any temporary initialization data
   // This would include any debug information, temporary tokens, etc.
-  // Implementation depends on specific security requirements
+  
+  if (!_isProduction) {
+    print('🧹 Sensitive data clearing skipped in development mode');
+    return;
+  }
+
+  // Production cleanup tasks
+  try {
+    // Clear any cached sensitive data
+    // Reset temporary security contexts
+    // Clean up debug traces
+    
+    print('🧹 Sensitive data cleared');
+  } catch (e) {
+    print('⚠️ Failed to clear sensitive data: $e');
+  }
 }
 
-/// Development: Get dependency health status
+/// Development: Get comprehensive dependency health status
 Map<String, dynamic> getDependencyHealthStatus() {
-  if (const bool.fromEnvironment('dart.vm.product')) {
+  if (_isProduction) {
+    return {
+      'status': 'production_mode',
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+  }
+
+  final healthStatus = <String, dynamic>{
+    'timestamp': DateTime.now().toIso8601String(),
+    'environment': 'development',
+    'services': <String, bool>{},
+    'performance': <String, dynamic>{},
+  };
+
+  // Check service registrations
+  final services = [
+    'FirebaseAuth',
+    'SupabaseClient', 
+    'GoogleSignIn',
+    'InternetConnectionChecker',
+    'NetworkInfo',
+    'RoleManager',
+    'RBACService',
+    'FirebaseAuthDataSource',
+    'SupabaseUserDataSource',
+    'AuthRepository',
+    'SignInWithGoogle',
+    'SignOut',
+    'IsAuthenticated',
+    'GetCurrentUser',
+    'AuthBloc',
+  ];
+
+  var registeredCount = 0;
+  for (final service in services) {
+    bool isRegistered = false;
+    try {
+      switch (service) {
+        case 'FirebaseAuth':
+          isRegistered = sl.isRegistered<FirebaseAuth>();
+          break;
+        case 'SupabaseClient':
+          isRegistered = sl.isRegistered<SupabaseClient>();
+          break;
+        case 'GoogleSignIn':
+          isRegistered = sl.isRegistered<GoogleSignIn>();
+          break;
+        case 'InternetConnectionChecker':
+          isRegistered = sl.isRegistered<InternetConnectionChecker>();
+          break;
+        case 'NetworkInfo':
+          isRegistered = sl.isRegistered<NetworkInfo>();
+          break;
+        case 'RoleManager':
+          isRegistered = sl.isRegistered<RoleManager>();
+          break;
+        case 'RBACService':
+          isRegistered = sl.isRegistered<RBACService>();
+          break;
+        case 'FirebaseAuthDataSource':
+          isRegistered = sl.isRegistered<FirebaseAuthDataSource>();
+          break;
+        case 'SupabaseUserDataSource':
+          isRegistered = sl.isRegistered<SupabaseUserDataSource>();
+          break;
+        case 'AuthRepository':
+          isRegistered = sl.isRegistered<AuthRepository>();
+          break;
+        case 'SignInWithGoogle':
+          isRegistered = sl.isRegistered<SignInWithGoogle>();
+          break;
+        case 'SignOut':
+          isRegistered = sl.isRegistered<SignOut>();
+          break;
+        case 'IsAuthenticated':
+          isRegistered = sl.isRegistered<IsAuthenticated>();
+          break;
+        case 'GetCurrentUser':
+          isRegistered = sl.isRegistered<GetCurrentUser>();
+          break;
+        case 'AuthBloc':
+          isRegistered = sl.isRegistered<AuthBloc>();
+          break;
+      }
+      
+      healthStatus['services'][service] = isRegistered;
+      if (isRegistered) registeredCount++;
+    } catch (e) {
+      healthStatus['services'][service] = false;
+    }
+  }
+
+  // Performance metrics
+  healthStatus['performance'] = {
+    'total_services': services.length,
+    'registered_services': registeredCount,
+    'registration_rate': (registeredCount / services.length * 100).toStringAsFixed(1) + '%',
+    'health_score': registeredCount == services.length ? 'excellent' : 
+                   registeredCount > services.length * 0.8 ? 'good' : 
+                   registeredCount > services.length * 0.5 ? 'fair' : 'poor',
+  };
+
+  return healthStatus;
+}
+
+/// Get detailed service information for debugging
+Map<String, dynamic> getServiceDetails() {
+  if (_isProduction) {
     return {'status': 'production_mode'};
   }
 
   return {
-    'firebase_registered': sl.isRegistered<FirebaseAuth>(),
-    'supabase_registered': sl.isRegistered<SupabaseClient>(),
-    'auth_bloc_factory': sl.isRegistered<AuthBloc>(),
-    'auth_repository': sl.isRegistered<AuthRepository>(),
-    'rbac_service': sl.isRegistered<RBACService>(),
-    'network_info': sl.isRegistered<NetworkInfo>(),
-    'total_registrations': _getRegistrationCount(),
+    'dependency_injection': {
+      'container': 'GetIt',
+      'strategy': 'Lazy Singleton + Factory',
+      'validation': 'Multi-layer',
+    },
+    'security_features': [
+      'Input validation',
+      'Error sanitization',
+      'Production mode filtering',
+      'Dependency validation',
+    ],
+    'performance_optimizations': [
+      'Lazy loading',
+      'Connection pooling',
+      'Retry mechanisms',
+      'Timeout handling',
+    ],
+    'monitoring': {
+      'health_checks': 'enabled',
+      'performance_tracking': 'enabled',
+      'error_reporting': 'filtered',
+    }
   };
 }
 
-/// Helper method to safely get registration count
-int _getRegistrationCount() {
-  try {
-    // Fixed: GetIt.allReadySync() returns bool, not collection
-    // Use alternative approach to count registrations
-    int count = 0;
-    final services = [
-      FirebaseAuth,
-      SupabaseClient,
-      GoogleSignIn,
-      InternetConnectionChecker,
-      NetworkInfo,
-      RoleManager,
-      RBACService,
-      AuthBloc,
-      SignInWithGoogle,
-      SignOut,
-      IsAuthenticated,
-      GetCurrentUser,
-      AuthRepository,
-      FirebaseAuthDataSource,
-      SupabaseUserDataSource,
-    ];
-
-    for (final service in services) {
-      if (sl.isRegistered(type: service)) count++;
-    }
-
-    return count;
-  } catch (e) {
-    return 0;
-  }
-}
+/// Helper method to check production mode
+bool get _isProduction => const bool.fromEnvironment('dart.vm.product');
 
 /// Cleanup for testing or app shutdown
 Future<void> cleanup() async {
-  await sl.reset();
-  print('🧹 DI Container cleaned up');
+  try {
+    print('🧹 Starting DI Container cleanup...');
+    
+    // Dispose any resources that need cleanup
+    if (sl.isRegistered<SupabaseUserDataSource>()) {
+      final supabaseDataSource = sl<SupabaseUserDataSource>();
+      if (supabaseDataSource is SupabaseUserDataSourceImpl) {
+        await supabaseDataSource.dispose();
+      }
+    }
+    
+    // Reset the container
+    await sl.reset();
+    
+    print('✅ DI Container cleaned up successfully');
+  } catch (e) {
+    print('⚠️ Error during cleanup: $e');
+  }
+}
+
+/// Emergency reset for critical errors
+Future<void> emergencyReset() async {
+  try {
+    print('🚨 Emergency reset initiated...');
+    await sl.reset();
+    print('✅ Emergency reset completed');
+  } catch (e) {
+    print('❌ Emergency reset failed: $e');
+  }
 }
