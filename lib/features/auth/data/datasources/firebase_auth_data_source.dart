@@ -6,8 +6,9 @@ import '../models/user_model.dart';
 abstract class FirebaseAuthDataSource {
   Future<UserModel> signInWithGoogle();
   Future<void> signOut();
-  UserModel? getCurrentUser();
-  bool isAuthenticated();
+  Future<UserModel?> getCurrentUser(); // เปลี่ยนเป็น Future
+  Stream<UserModel?> get authStateChanges; // เพิ่ม stream
+  Future<bool> isAuthenticated();
 }
 
 class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
@@ -50,12 +51,25 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   }
 
   @override
-  UserModel? getCurrentUser() {
-    final user = firebaseAuth.currentUser;
-    if (user != null) {
-      return UserModel.fromFirebaseUser(user);
+  Future<UserModel?> getCurrentUser() async {
+    try {
+      // แทนที่จะใช้ currentUser โดยตรง ให้รอ authStateChanges แรก
+      final user = await firebaseAuth.authStateChanges().first;
+      if (user != null) {
+        return UserModel.fromFirebaseUser(user);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting current user: $e');
+      return null;
     }
-    return null;
+  }
+
+  @override
+  Stream<UserModel?> get authStateChanges {
+    return firebaseAuth.authStateChanges().map((user) {
+      return user != null ? UserModel.fromFirebaseUser(user) : null;
+    });
   }
 
   @override
@@ -65,7 +79,13 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   }
 
   @override
-  bool isAuthenticated() {
-    return firebaseAuth.currentUser != null;
+  Future<bool> isAuthenticated() async {
+    try {
+      // แทนที่จะเช็ค currentUser ให้รอ authStateChanges
+      final user = await firebaseAuth.authStateChanges().first;
+      return user != null;
+    } catch (e) {
+      return false;
+    }
   }
 }

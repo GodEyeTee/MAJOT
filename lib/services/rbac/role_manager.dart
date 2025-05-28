@@ -1,4 +1,3 @@
-// lib/services/rbac/role_manager.dart
 enum UserRole { admin, editor, user }
 
 class Permission {
@@ -27,51 +26,32 @@ class RoleManager {
       Permission(
         id: 'manage_users',
         name: 'Manage Users',
-        description: 'Can manage all users',
+        description: 'Can manage all users and assign roles',
       ),
       Permission(
         id: 'manage_roles',
         name: 'Manage Roles',
-        description: 'Can manage roles',
+        description: 'Can manage user roles and permissions',
       ),
       Permission(
         id: 'view_analytics',
         name: 'View Analytics',
-        description: 'Can view analytics',
+        description: 'Can view detailed analytics and reports',
       ),
       Permission(
         id: 'manage_hotels',
         name: 'Manage Hotels',
-        description: 'Can manage hotels',
+        description: 'Can add, edit, and delete hotels',
       ),
       Permission(
         id: 'manage_products',
         name: 'Manage Products',
-        description: 'Can manage products',
+        description: 'Can add, edit, and delete products',
       ),
-    ],
-    UserRole.editor: [
-      Permission(
-        id: 'view_analytics',
-        name: 'View Analytics',
-        description: 'Can view analytics',
-      ),
-      Permission(
-        id: 'manage_hotels',
-        name: 'Manage Hotels',
-        description: 'Can manage hotels',
-      ),
-      Permission(
-        id: 'manage_products',
-        name: 'Manage Products',
-        description: 'Can manage products',
-      ),
-    ],
-    UserRole.user: [
       Permission(
         id: 'book_hotels',
         name: 'Book Hotels',
-        description: 'Can book hotels',
+        description: 'Can book hotels for customers',
       ),
       Permission(
         id: 'purchase_products',
@@ -80,8 +60,57 @@ class RoleManager {
       ),
       Permission(
         id: 'use_scanner',
-        name: 'Use Scanner',
-        description: 'Can use OCR scanner',
+        name: 'Use OCR Scanner',
+        description: 'Can use OCR scanning functionality',
+      ),
+    ],
+    UserRole.editor: [
+      Permission(
+        id: 'view_analytics',
+        name: 'View Analytics',
+        description: 'Can view analytics and generate reports',
+      ),
+      Permission(
+        id: 'manage_hotels',
+        name: 'Manage Hotels',
+        description: 'Can add, edit hotels and manage bookings',
+      ),
+      Permission(
+        id: 'manage_products',
+        name: 'Manage Products',
+        description: 'Can add, edit products and manage inventory',
+      ),
+      Permission(
+        id: 'book_hotels',
+        name: 'Book Hotels',
+        description: 'Can book hotels for customers',
+      ),
+      Permission(
+        id: 'purchase_products',
+        name: 'Purchase Products',
+        description: 'Can purchase products',
+      ),
+      Permission(
+        id: 'use_scanner',
+        name: 'Use OCR Scanner',
+        description: 'Can use OCR scanning functionality',
+      ),
+    ],
+    UserRole.user: [
+      Permission(
+        id: 'book_hotels',
+        name: 'Book Hotels',
+        description: 'Can search and book hotels',
+      ),
+      Permission(
+        id: 'purchase_products',
+        name: 'Purchase Products',
+        description: 'Can browse and purchase products',
+      ),
+      Permission(
+        id: 'use_scanner',
+        name: 'Use OCR Scanner',
+        description: 'Can use OCR scanner for personal use',
       ),
     ],
   };
