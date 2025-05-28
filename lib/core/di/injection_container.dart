@@ -163,8 +163,8 @@ Future<void> _registerExternalDependencies() async {
   try {
     sl.registerLazySingleton<InternetConnectionChecker>(
       () => InternetConnectionChecker.createInstance(
-        checkTimeout: const Duration(seconds: 3),
-        checkInterval: const Duration(seconds: 5),
+        checkTimeout: const Duration(seconds: 10),
+        checkInterval: const Duration(seconds: 30),
       ),
     );
     print('✅ Network Connection Checker registered');

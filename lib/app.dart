@@ -86,6 +86,9 @@ class App extends StatelessWidget {
 
   /// Build main application with routing and security
   Widget _buildMainApp(BuildContext context, AuthState authState) {
+    print('🟢 Current auth state: ${authState.runtimeType}');
+    print('🟢 Building router for state: ${authState.runtimeType}');
+
     final router = _createSecureRouter(context, authState);
 
     return MaterialApp.router(

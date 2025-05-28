@@ -42,6 +42,7 @@ class LoginPage extends StatelessWidget {
                     icon: const Icon(Icons.login),
                     label: const Text('Sign in with Google'),
                     onPressed: () {
+                      print('🔴 LOGIN BUTTON PRESSED!');
                       context.read<AuthBloc>().add(SignInWithGoogleEvent());
                     },
                   ),

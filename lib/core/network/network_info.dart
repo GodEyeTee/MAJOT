@@ -63,8 +63,8 @@ class NetworkInfoImpl implements NetworkInfo {
 
   // Performance optimization
   static const Duration _cacheValidity = Duration(seconds: 5);
-  static const Duration _monitoringInterval = Duration(seconds: 10);
-  static const Duration _qualityCheckInterval = Duration(seconds: 30);
+  static const Duration _monitoringInterval = Duration(seconds: 30);
+  static const Duration _qualityCheckInterval = Duration(seconds: 2);
 
   NetworkInfoImpl(this.connectionChecker) {
     _initializeMonitoring();
