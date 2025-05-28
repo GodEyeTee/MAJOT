@@ -78,8 +78,8 @@ Future<void> init() async {
   // Supabase
   sl.registerLazySingleton(() => Supabase.instance.client);
 
-  // Network
-  sl.registerLazySingleton(() => InternetConnectionChecker());
+  // Network - แก้ไขการสร้าง InternetConnectionChecker
+  sl.registerLazySingleton(() => InternetConnectionChecker.createInstance());
 
   print('✅ Dependency Injection initialized successfully');
 }
