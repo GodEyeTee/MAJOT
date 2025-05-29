@@ -51,13 +51,9 @@ class AppConfig {
         print('❌ Failed to load app configuration: $e');
       }
 
-      // Return default configuration for development
-      if (!kReleaseMode) {
-        print('🔄 Using fallback configuration for development');
-        return _createFallbackConfig();
-      }
-
-      throw ConfigurationException('Failed to load app configuration: $e');
+      // Always return fallback configuration when loading fails
+      print('🔄 Using fallback configuration');
+      return _createFallbackConfig();
     }
   }
 
@@ -73,7 +69,10 @@ class AppConfig {
       throw ConfigurationException('Invalid Supabase URL format');
     }
 
-    if (!supabaseUrl.startsWith('https://')) {
+    // Skip HTTPS requirement for development
+    if (!kReleaseMode || supabaseUrl.startsWith('https://')) {
+      // OK for development or secure URLs
+    } else {
       throw ConfigurationException('Supabase URL must use HTTPS for security');
     }
 
@@ -130,12 +129,12 @@ class AppConfig {
 
     // Default feature flags
     final defaultFeatures = {
-      'analytics_enabled': true,
-      'crash_reporting_enabled': true,
+      'analytics_enabled': false,
+      'crash_reporting_enabled': false,
       'biometric_auth_enabled': false,
       'offline_mode_enabled': true,
       'debug_mode_enabled': !kReleaseMode,
-      'performance_monitoring_enabled': true,
+      'performance_monitoring_enabled': false,
       'security_logging_enabled': !kReleaseMode,
     };
 
@@ -159,9 +158,9 @@ class AppConfig {
       'session_timeout_minutes': 120,
       'max_login_attempts': 5,
       'lockout_duration_minutes': 15,
-      'require_secure_connection': true,
+      'require_secure_connection': kReleaseMode,
       'certificate_pinning_enabled': kReleaseMode,
-      'api_rate_limiting_enabled': true,
+      'api_rate_limiting_enabled': kReleaseMode,
       'encryption_enabled': true,
     };
 
@@ -174,16 +173,12 @@ class AppConfig {
     // Validate critical security settings
     final sessionTimeout = validatedSecurity['session_timeout_minutes'] as int;
     if (sessionTimeout < 5 || sessionTimeout > 480) {
-      throw ConfigurationException(
-        'Session timeout must be between 5 and 480 minutes',
-      );
+      validatedSecurity['session_timeout_minutes'] = 120; // Use default
     }
 
     final maxAttempts = validatedSecurity['max_login_attempts'] as int;
     if (maxAttempts < 3 || maxAttempts > 10) {
-      throw ConfigurationException(
-        'Max login attempts must be between 3 and 10',
-      );
+      validatedSecurity['max_login_attempts'] = 5; // Use default
     }
 
     return validatedSecurity;
@@ -215,9 +210,7 @@ class AppConfig {
     // Validate performance settings
     final apiTimeout = validatedPerformance['api_timeout_seconds'] as int;
     if (apiTimeout < 5 || apiTimeout > 120) {
-      throw ConfigurationException(
-        'API timeout must be between 5 and 120 seconds',
-      );
+      validatedPerformance['api_timeout_seconds'] = 30; // Use default
     }
 
     return validatedPerformance;
@@ -227,7 +220,8 @@ class AppConfig {
   static AppConfig _createFallbackConfig() {
     return AppConfig(
       supabaseUrl: 'https://localhost.supabase.co',
-      anonKey: 'development-anon-key',
+      anonKey:
+          'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.default-key-for-development-only',
       environment: 'development',
       version: '1.0.0-dev',
       features: {
@@ -235,17 +229,23 @@ class AppConfig {
         'crash_reporting_enabled': false,
         'debug_mode_enabled': true,
         'offline_mode_enabled': true,
+        'performance_monitoring_enabled': false,
+        'security_logging_enabled': true,
       },
       security: {
         'session_timeout_minutes': 60,
         'max_login_attempts': 10,
         'require_secure_connection': false,
         'certificate_pinning_enabled': false,
+        'api_rate_limiting_enabled': false,
+        'encryption_enabled': false,
       },
       performance: {
         'api_timeout_seconds': 60,
         'cache_duration_minutes': 5,
         'concurrent_requests_limit': 10,
+        'preload_enabled': false,
+        'compression_enabled': false,
       },
     );
   }

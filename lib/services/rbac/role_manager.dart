@@ -202,21 +202,8 @@ class RoleManager {
         level: PermissionLevel.basic,
       ),
     ],
+    // *** แก้ไขส่วนนี้ - ลบ book_hotels และ purchase_products ออก ***
     UserRole.user: [
-      const Permission(
-        id: 'book_hotels',
-        name: 'Book Hotels',
-        description: 'Can search and book hotels',
-        category: 'hotel_booking',
-        level: PermissionLevel.standard,
-      ),
-      const Permission(
-        id: 'purchase_products',
-        name: 'Purchase Products',
-        description: 'Can browse and purchase products',
-        category: 'shopping',
-        level: PermissionLevel.standard,
-      ),
       const Permission(
         id: 'use_scanner',
         name: 'Use OCR Scanner',
@@ -224,6 +211,8 @@ class RoleManager {
         category: 'tools',
         level: PermissionLevel.basic,
       ),
+      // ลบ book_hotels และ purchase_products ออกแล้ว
+      // ทำให้ user เข้าได้แค่: home, settings, wallet, scanner
     ],
     UserRole.guest: [],
   };

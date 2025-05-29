@@ -40,6 +40,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeNavigation();
     _performSecurityCheck();
+    print(
+      '🔍 Debug: User permissions = ${_rbacService.getCurrentUserPermissions().map((p) => p.id).toList()}',
+    );
   }
 
   /// Initialize navigation with comprehensive security configuration

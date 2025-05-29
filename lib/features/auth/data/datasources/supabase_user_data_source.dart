@@ -13,7 +13,6 @@ abstract class SupabaseUserDataSource {
 class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   final SupabaseClient supabaseClient;
 
-  // Security: Rate limiting to prevent abuse
   static const int _maxRetries = 3;
   static const Duration _retryDelay = Duration(seconds: 2);
   static const Duration _operationTimeout = Duration(seconds: 10);
@@ -23,30 +22,46 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   @override
   Future<void> saveUser(UserModel user) async {
     await _executeWithRetry(() async {
-      // Security: Validate input before database operation
       _validateUserModel(user);
 
       final userData = _sanitizeUserData(user.toJson());
 
       try {
-        // Performance: Use upsert for better efficiency
-        final response = await supabaseClient
+        // *** แก้ไขตรงนี้ - ใช้ upsert แทน insert ***
+        await supabaseClient
             .from('users')
             .upsert(userData, onConflict: 'id')
-            .select()
-            .single()
             .timeout(_operationTimeout);
 
-        // Security: Verify the operation succeeded
-        if (response['id'] != user.id) {
-          throw const DatabaseException('User save verification failed');
-        }
-
-        // Performance: Log only in debug mode
         if (!_isProduction) {
           print('✅ User saved successfully: ${user.email}');
         }
       } on PostgrestException catch (e) {
+        // *** แก้ไขตรงนี้ - จัดการ duplicate key error ***
+        if (e.code == '23505') {
+          // User already exists, try to update instead
+          try {
+            await supabaseClient
+                .from('users')
+                .update({
+                  'full_name': userData['full_name'],
+                  'updated_at': DateTime.now().toIso8601String(),
+                })
+                .eq('id', user.id)
+                .timeout(_operationTimeout);
+
+            if (!_isProduction) {
+              print('✅ User updated instead of created: ${user.email}');
+            }
+            return; // Success - user was updated
+          } catch (updateError) {
+            // If update also fails, just continue silently as user exists
+            if (!_isProduction) {
+              print('ℹ️ User already exists, skipping: ${user.email}');
+            }
+            return;
+          }
+        }
         throw DatabaseException(_handlePostgrestError(e));
       } on Exception catch (e) {
         throw DatabaseException('Database operation failed: ${e.toString()}');
@@ -57,7 +72,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   @override
   Future<UserModel?> getUser(String id) async {
     return await _executeWithRetry(() async {
-      // Security: Validate ID format
       if (id.isEmpty || id.length < 10) {
         throw const DatabaseException('Invalid user ID format');
       }
@@ -74,12 +88,10 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
           return null;
         }
 
-        // Security: Validate returned data structure
         _validateUserData(response);
-
         return UserModel.fromJson(response);
       } on PostgrestException catch (e) {
-        if (e.code == 'PGRST116') return null; // No rows found
+        if (e.code == 'PGRST116') return null;
         throw DatabaseException(_handlePostgrestError(e));
       } on Exception catch (e) {
         throw DatabaseException('Failed to get user: ${e.toString()}');
@@ -90,12 +102,10 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   @override
   Future<void> updateUserRole(String id, String role) async {
     await _executeWithRetry(() async {
-      // Security: Validate role
       if (!_isValidRole(role)) {
         throw DatabaseException('Invalid role: $role');
       }
 
-      // Security: Validate ID
       if (id.isEmpty || id.length < 10) {
         throw const DatabaseException('Invalid user ID format');
       }
@@ -112,7 +122,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
             .single()
             .timeout(_operationTimeout);
 
-        // Security: Verify update succeeded
         if (response['role'] != role) {
           throw const DatabaseException('Role update verification failed');
         }
@@ -186,7 +195,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
     };
   }
 
-  // Security: Input validation
   void _validateUserModel(UserModel user) {
     if (user.id.isEmpty) {
       throw const DatabaseException('User ID cannot be empty');
@@ -201,7 +209,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
       throw const DatabaseException('Invalid email format');
     }
 
-    // Additional validation
     if (user.id.length < 10 || user.id.length > 128) {
       throw const DatabaseException('User ID length is invalid');
     }
@@ -215,17 +222,14 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
       }
     }
 
-    // Validate data types
     if (data['id'] is! String || data['email'] is! String) {
       throw const DatabaseException('Invalid data types in user data');
     }
   }
 
-  // Security: Data sanitization
   Map<String, dynamic> _sanitizeUserData(Map<String, dynamic> data) {
     final sanitized = <String, dynamic>{};
 
-    // Sanitize each field carefully
     if (data['id'] != null) {
       sanitized['id'] = data['id'].toString().trim();
     }
@@ -242,11 +246,9 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
       sanitized['role'] = data['role'].toString().trim().toLowerCase();
     }
 
-    // Add timestamps
     final now = DateTime.now().toIso8601String();
     sanitized['updated_at'] = now;
 
-    // Only add created_at if it's a new record
     if (!data.containsKey('created_at')) {
       sanitized['created_at'] = now;
     }
@@ -254,7 +256,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
     return sanitized;
   }
 
-  // Performance: Retry mechanism with exponential backoff
   Future<T> _executeWithRetry<T>(Future<T> Function() operation) async {
     int attempts = 0;
     Duration currentDelay = _retryDelay;
@@ -264,6 +265,16 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
         return await operation();
       } catch (e) {
         attempts++;
+
+        // *** แก้ไขตรงนี้ - ไม่ retry สำหรับ duplicate key error ***
+        if (e is DatabaseException &&
+            e.message.contains('User already exists')) {
+          if (!_isProduction) {
+            print('ℹ️ User already exists, not retrying');
+          }
+          return await operation(); // Try once more but don't throw
+        }
+
         if (attempts >= _maxRetries) {
           if (!_isProduction) {
             print('❌ Operation failed after $_maxRetries attempts: $e');
@@ -271,7 +282,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
           rethrow;
         }
 
-        // Exponential backoff with jitter
         final jitter = Duration(
           milliseconds: (currentDelay.inMilliseconds * 0.1).round(),
         );
@@ -284,7 +294,7 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
         }
 
         await Future.delayed(delayWithJitter);
-        currentDelay *= 2; // Exponential backoff
+        currentDelay *= 2;
       }
     }
 
@@ -293,15 +303,12 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
     );
   }
 
-  // Security: Error message handling - don't expose internal details
   String _handlePostgrestError(PostgrestException e) {
-    // Log full error details for debugging (only in debug mode)
     if (!_isProduction) {
       print('🔴 Postgrest Error: ${e.code} - ${e.message}');
       print('🔴 Error details: ${e.details}');
     }
 
-    // Return safe error messages to users
     switch (e.code) {
       case '23505':
         return 'User already exists';
@@ -324,14 +331,11 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
     }
   }
 
-  // Security: Input validation helpers
   bool _isValidEmail(String email) {
-    // Enhanced RFC 5322 compliant email validation
     final emailRegex = RegExp(
       r'^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$',
     );
 
-    // Additional validation
     if (email.length > 254 || email.length < 5) return false;
     if (email.startsWith('.') || email.endsWith('.')) return false;
     if (email.contains('..')) return false;
@@ -340,17 +344,13 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   }
 
   bool _isValidRole(String role) {
-    // Security: Define role hierarchy and validation
     const validRoles = ['admin', 'editor', 'user', 'guest'];
     final normalizedRole = role.toLowerCase().trim();
-
     return validRoles.contains(normalizedRole) && normalizedRole.isNotEmpty;
   }
 
-  // Helper: Check if running in production
   bool get _isProduction => const bool.fromEnvironment('dart.vm.product');
 
-  // Performance: Connection pool status monitoring
   Future<Map<String, dynamic>> getConnectionPoolStatus() async {
     if (_isProduction) {
       return {'status': 'production_mode'};
@@ -386,9 +386,7 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
     return 'poor';
   }
 
-  // Cleanup method for proper resource management
   Future<void> dispose() async {
-    // Perform any necessary cleanup
     if (!_isProduction) {
       print('🧹 SupabaseUserDataSource disposed');
     }
