@@ -6,6 +6,7 @@ import '../../domain/usecases/sign_in_with_google.dart';
 import '../../domain/usecases/sign_out.dart';
 import '../../domain/usecases/get_current_user.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -36,6 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SignInWithGoogleEvent>(_onSignInWithGoogle);
     on<SignOutEvent>(_onSignOut);
     on<AuthStateChangedEvent>(_onAuthStateChanged);
+    on<RefreshUserDataEvent>(_onRefreshUserData);
 
     _initializeAuthStateMonitoring();
   }
@@ -94,6 +96,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(Unauthenticated());
       }
     });
+  }
+
+  Future<void> _onRefreshUserData(
+    RefreshUserDataEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+
+    // ใช้ forceGetCurrentUser แทน
+    if (authRepository is AuthRepositoryImpl) {
+      final result =
+          await (authRepository as AuthRepositoryImpl).forceGetCurrentUser();
+      result.fold((failure) => emit(AuthError(message: failure.message)), (
+        user,
+      ) {
+        if (user != null) {
+          _cachedUser = user;
+          _rbacService.setCurrentUser(user);
+          emit(Authenticated(user: user));
+        } else {
+          emit(Unauthenticated());
+        }
+      });
+    }
   }
 
   Future<void> _onSignInWithGoogle(

@@ -88,7 +88,11 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   UserModel _mergeUserData(UserModel firebaseUser, UserModel supabaseUser) {
-    return supabaseUser.copyWith(
+    print('🔄 Merging user data:');
+    print('   Firebase role: ${firebaseUser.role}');
+    print('   Supabase role: ${supabaseUser.role}');
+
+    final mergedUser = supabaseUser.copyWith(
       email: firebaseUser.email ?? supabaseUser.email,
       emailVerified: firebaseUser.emailVerified,
       photoURL: firebaseUser.photoURL ?? supabaseUser.photoURL,
@@ -96,12 +100,18 @@ class AuthRepositoryImpl implements AuthRepository {
       linkedProviders: firebaseUser.linkedProviders,
       lastLoginAt: DateTime.now(),
       updatedAt: DateTime.now(),
+      // ใช้ role จาก Supabase เป็นหลัก แทนที่จะ merge
+      role: supabaseUser.role, // ใช้ role จาก Supabase
       metadata: {
         ...supabaseUser.metadata,
         ...firebaseUser.metadata,
         'last_firebase_sync': DateTime.now().toIso8601String(),
+        'role_source': 'supabase',
       },
     );
+
+    print('   Final merged role: ${mergedUser.role}');
+    return mergedUser;
   }
 
   @override
@@ -142,7 +152,8 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User?>> getCurrentUser() async {
     try {
-      if (_isCacheValid()) {
+      // ใช้ cache ตามปกติ
+      if (_isCacheValid() && _cachedUser != null) {
         return Right(_cachedUser);
       }
 
@@ -160,6 +171,76 @@ class AuthRepositoryImpl implements AuthRepository {
     } on DatabaseException catch (e) {
       return Left(DatabaseFailure(e.message));
     } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  Future<Either<Failure, User?>> forceGetCurrentUser() async {
+    try {
+      print('🔄 Force refreshing user data from all sources...');
+
+      // Clear all caches first
+      _clearCache();
+
+      // Clear Firebase auth cache
+      if (firebaseAuthDataSource is FirebaseAuthDataSourceImpl) {
+        (firebaseAuthDataSource as FirebaseAuthDataSourceImpl)
+            .forceClearCache();
+      }
+
+      // Force get fresh Firebase user
+      final firebaseUser = await firebaseAuthDataSource.getCurrentUser();
+      if (firebaseUser == null) {
+        print('❌ No Firebase user found');
+        return const Right(null);
+      }
+
+      print(
+        '✅ Got Firebase user: ${firebaseUser.email} (role: ${firebaseUser.role})',
+      );
+
+      // Force get fresh Supabase data
+      print('🔄 Getting fresh data from Supabase for user: ${firebaseUser.id}');
+      final supabaseUser = await supabaseUserDataSource.getUser(
+        firebaseUser.id,
+      );
+
+      UserModel enrichedUser;
+      if (supabaseUser != null) {
+        print('✅ Got Supabase user data - role: ${supabaseUser.role}');
+        enrichedUser = _mergeUserData(firebaseUser, supabaseUser);
+        print('✅ Merged data - Final role: ${enrichedUser.role}');
+      } else {
+        print('⚠️ No Supabase user found, creating new one with guest role');
+        // Save new user to Supabase with guest role
+        final userToSave = firebaseUser.copyWith(
+          role: UserRole.guest, // เริ่มต้นด้วย guest
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          lastLoginAt: DateTime.now(),
+        );
+        await supabaseUserDataSource.saveUser(userToSave);
+        enrichedUser = userToSave;
+        print('✅ Created new user in Supabase with guest role');
+      }
+
+      // Update cache with fresh data
+      _updateCache(enrichedUser);
+
+      print('🎉 Force refresh completed - Final role: ${enrichedUser.role}');
+      print(
+        '🎉 User permissions will be: ${RoleManager().getPermissionsForRole(enrichedUser.role).map((p) => p.id).join(', ')}',
+      );
+
+      return Right(enrichedUser);
+    } on AuthException catch (e) {
+      print('❌ Auth error during force refresh: ${e.message}');
+      return Left(AuthFailure(e.message));
+    } on DatabaseException catch (e) {
+      print('❌ Database error during force refresh: ${e.message}');
+      return Left(DatabaseFailure(e.message));
+    } catch (e) {
+      print('❌ Unknown error during force refresh: $e');
       return Left(UnknownFailure(e.toString()));
     }
   }

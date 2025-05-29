@@ -13,8 +13,10 @@ class User extends Equatable {
     required this.id,
     this.email,
     this.displayName,
-    this.role = UserRole.user,
+    this.role = UserRole.guest, // แก้เป็น guest
   });
+
+  // ... ส่วนที่เหลือเหมือนเดิม ...
 
   /// Check if user has valid email
   bool get hasValidEmail {
@@ -152,7 +154,7 @@ class CreateUserRequest {
     required this.id,
     this.email,
     this.displayName,
-    this.role = UserRole.user,
+    this.role = UserRole.guest, // แก้เป็น guest
   });
 
   /// Convert to User entity

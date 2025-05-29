@@ -185,6 +185,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
+  // ใน MainScreen หรือที่ไหนก็ได้
+  void _testRefresh() {
+    print('🧪 Testing refresh...');
+    context.read<AuthBloc>().add(RefreshUserDataEvent());
+  }
+
   /// Handle navigation tap with security validation
   void _onItemTapped(int index) {
     _navigationAttempts++;
@@ -347,6 +353,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ],
       ),
       actions: [
+        // เพิ่มปุ่ม Refresh
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: () => _refreshUserData(context),
+          tooltip: 'Refresh User Data',
+        ),
+
         // Security indicator
         _buildSecurityIndicator(),
 
@@ -374,6 +387,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const PopupMenuDivider(),
+                // เพิ่ม Refresh menu item
+                const PopupMenuItem(
+                  value: 'refresh',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text(
+                        'Refresh Data',
+                        style: TextStyle(color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'security',
                   child: Row(
@@ -410,6 +437,56 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
       ],
     );
+  }
+
+  /// เพิ่มฟังก์ชันสำหรับ refresh user data
+  void _refreshUserData(BuildContext context) {
+    print('🔄 Manual refresh triggered by user');
+
+    // Show loading with longer duration
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Refreshing from database...'),
+          ],
+        ),
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    // Trigger force refresh
+    context.read<AuthBloc>().add(
+      RefreshUserDataEvent(includePermissions: true),
+    );
+
+    // Show success message after delay
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Data refreshed successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    });
   }
 
   /// Build security indicator
@@ -691,6 +768,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       case 'profile':
         _showUserProfile(state);
         break;
+      case 'refresh':
+        _refreshUserData(context);
+        break;
       case 'security':
         _showSecuritySettings();
         break;
@@ -715,6 +795,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 Text('Email: ${state.user?.email ?? "No email"}'),
                 Text('Role: ${state.user?.role.displayName ?? "No role"}'),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _refreshUserData(context);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh Data'),
+                ),
               ],
             ),
             actions: [

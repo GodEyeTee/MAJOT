@@ -39,7 +39,7 @@ class UserModel extends User {
       id: user.uid,
       email: user.email,
       displayName: user.displayName ?? _generateDisplayName(user.email),
-      role: UserRole.user, // Default role, will be updated from Supabase
+      role: UserRole.guest, // แก้เป็น guest แทน user
       photoURL: user.photoURL,
       emailVerified: user.emailVerified,
       phoneNumber: user.phoneNumber,
@@ -62,13 +62,13 @@ class UserModel extends User {
   /// Create UserModel from JSON with comprehensive validation
   factory UserModel.fromJson(Map<String, dynamic> json) {
     try {
-      // Parse role with fallback
-      UserRole userRole = UserRole.user;
+      // Parse role with fallback - แก้เป็น guest
+      UserRole userRole = UserRole.guest; // เปลี่ยนจาก user เป็น guest
       if (json['role'] != null) {
         final roleString = json['role'].toString().toLowerCase();
         userRole = UserRole.values.firstWhere(
           (role) => role.name.toLowerCase() == roleString,
-          orElse: () => UserRole.user,
+          orElse: () => UserRole.guest, // เปลี่ยนจาก user เป็น guest
         );
       }
 
@@ -107,7 +107,7 @@ class UserModel extends User {
             json['full_name']?.toString() ??
             json['display_name']?.toString() ??
             _generateDisplayName(json['email']?.toString()),
-        role: userRole,
+        role: userRole, // ใช้ role ที่ parse มาจาก Supabase
         photoURL:
             json['photo_url']?.toString() ?? json['avatar_url']?.toString(),
         emailVerified: json['email_verified'] == true,
@@ -126,12 +126,12 @@ class UserModel extends User {
         print('JSON data: $json');
       }
 
-      // Return basic user model with minimal data
+      // Return basic user model with minimal data - แก้เป็น guest
       return UserModel(
         id: json['id']?.toString() ?? '',
         email: json['email']?.toString(),
         displayName: json['full_name']?.toString() ?? 'User',
-        role: UserRole.user,
+        role: UserRole.guest, // เปลี่ยนจาก user เป็น guest
       );
     }
   }
