@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/auth/presentation/bloc/auth_state.dart';
+import '../features/auth/data/repositories/auth_repository_impl.dart';
+import '../features/auth/data/models/user_model.dart';
 import '../features/home/presentation/pages/home_page.dart';
 import '../features/wallet/presentation/pages/wallet_page.dart';
 import '../features/analytics/presentation/pages/analytics_page.dart';
@@ -185,12 +188,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ใน MainScreen หรือที่ไหนก็ได้
-  void _testRefresh() {
-    print('🧪 Testing refresh...');
-    context.read<AuthBloc>().add(RefreshUserDataEvent());
-  }
-
   /// Handle navigation tap with security validation
   void _onItemTapped(int index) {
     _navigationAttempts++;
@@ -353,23 +350,95 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ],
       ),
       actions: [
-        // เพิ่มปุ่ม Refresh
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: () => _refreshUserData(context),
-          tooltip: 'Refresh User Data',
-        ),
+        // Debug buttons for development
+        if (!kReleaseMode) ...[
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.bug_report),
+            tooltip: 'Debug Tools',
+            onSelected: (value) async {
+              switch (value) {
+                case 'refresh':
+                  _refreshUserData(context);
+                  break;
+                case 'force_refresh':
+                  _forceRefreshUserData(context);
+                  break;
+                case 'check_supabase':
+                  await _checkSupabaseData(context);
+                  break;
+                case 'clear_cache':
+                  _clearAllCaches(context);
+                  break;
+                case 'debug_info':
+                  _showDetailedDebugInfo(context, state);
+                  break;
+              }
+            },
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text('Normal Refresh'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'force_refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh_outlined, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Force Refresh'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'check_supabase',
+                    child: Row(
+                      children: [
+                        Icon(Icons.storage, color: Colors.green),
+                        SizedBox(width: 8),
+                        Text('Check Supabase'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'clear_cache',
+                    child: Row(
+                      children: [
+                        Icon(Icons.clear_all, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Clear All Cache'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'debug_info',
+                    child: Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.purple),
+                        SizedBox(width: 8),
+                        Text('Debug Info'),
+                      ],
+                    ),
+                  ),
+                ],
+          ),
+        ] else ...[
+          // Normal refresh button for production
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _refreshUserData(context),
+            tooltip: 'Refresh User Data',
+          ),
+        ],
 
         // Security indicator
         _buildSecurityIndicator(),
-
-        // Debug info (development only)
-        if (!kReleaseMode)
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => _showDebugInfo(state),
-            tooltip: 'Debug Information',
-          ),
 
         // Profile menu
         PopupMenuButton<String>(
@@ -387,7 +456,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const PopupMenuDivider(),
-                // เพิ่ม Refresh menu item
                 const PopupMenuItem(
                   value: 'refresh',
                   child: Row(
@@ -439,11 +507,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// เพิ่มฟังก์ชันสำหรับ refresh user data
+  /// Normal refresh user data
   void _refreshUserData(BuildContext context) {
     print('🔄 Manual refresh triggered by user');
 
-    // Show loading with longer duration
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -464,12 +531,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       ),
     );
 
-    // Trigger force refresh
     context.read<AuthBloc>().add(
       RefreshUserDataEvent(includePermissions: true),
     );
 
-    // Show success message after delay
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -487,6 +552,287 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         );
       }
     });
+  }
+
+  /// Force refresh user data - bypasses all caches
+  void _forceRefreshUserData(BuildContext context) {
+    print('🔥 FORCE REFRESH triggered by user');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Force refreshing from database...'),
+          ],
+        ),
+        duration: Duration(seconds: 4),
+        backgroundColor: Colors.orange,
+      ),
+    );
+
+    // Trigger force refresh in repository (bypasses cache)
+    final authBloc = context.read<AuthBloc>();
+    if (authBloc.authRepository is AuthRepositoryImpl) {
+      (authBloc.authRepository as AuthRepositoryImpl).forceGetCurrentUser().then((
+        result,
+      ) {
+        result.fold(
+          (failure) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Force refresh failed: ${failure.message}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          (user) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Force refresh completed! Role: ${user?.role.displayName ?? 'None'}',
+                  ),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              // Trigger UI update
+              authBloc.add(RefreshUserDataEvent());
+            }
+          },
+        );
+      });
+    }
+  }
+
+  /// Check Supabase data directly
+  Future<void> _checkSupabaseData(BuildContext context) async {
+    final user = context.read<AuthBloc>().currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No current user')));
+      return;
+    }
+    print('🔍 Firebase UID: ${user.id}');
+    print('🔍 UID Length: ${user.id.length}');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Checking Supabase...'),
+              ],
+            ),
+          ),
+    );
+
+    try {
+      // Check Supabase directly
+      final supabaseClient = supabase.Supabase.instance.client;
+      final response =
+          await supabaseClient
+              .from('users')
+              .select()
+              .eq('id', user.id)
+              .maybeSingle(); // Use maybeSingle() instead of single()
+
+      Navigator.of(context).pop(); // Close loading dialog
+
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Supabase Data'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Current App User:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text('  Email: ${user.email}'),
+                    Text('  Role: ${user.role.name}'),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Supabase Data:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    if (response != null) ...[
+                      Text('  ID: ${response['id']}'),
+                      Text('  Email: ${response['email']}'),
+                      Text('  Role: ${response['role']}'),
+                      Text('  Full Name: ${response['full_name']}'),
+                      Text('  Updated: ${response['updated_at']}'),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Raw JSON:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          response.toString(),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        '  No user found in Supabase database',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('  This user needs to be created in Supabase'),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _forceRefreshUserData(
+                            context,
+                          ); // This will create the user
+                        },
+                        child: const Text('Create User in Supabase'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Supabase Error'),
+              content: Text('Error: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+      );
+    }
+  }
+
+  /// Clear all caches
+  void _clearAllCaches(BuildContext context) {
+    // Clear repository cache by triggering force refresh
+    final authBloc = context.read<AuthBloc>();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('All caches cleared!'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+
+    // Trigger force refresh to clear cache
+    authBloc.add(const CheckAuthStatusEvent(forceRefresh: true));
+  }
+
+  /// Show detailed debug information
+  void _showDetailedDebugInfo(BuildContext context, Authenticated state) {
+    final user = state.user;
+    final permissions = _rbacService.getCurrentUserPermissions();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Detailed Debug Info'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'User Information:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('  ID: ${user?.id}'),
+                  Text('  Email: ${user?.email}'),
+                  Text('  Display Name: ${user?.displayName}'),
+                  Text(
+                    '  Role: ${user?.role.name} (${user?.role.displayName})',
+                  ),
+                  if (user is UserModel) ...[
+                    Text('  Role Source: ${user.metadata['role_source']}'),
+                    Text('  Last Updated: ${user.updatedAt}'),
+                    Text('  Provider: ${user.provider}'),
+                  ],
+                  const SizedBox(height: 16),
+                  Text(
+                    'Permissions:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  if (permissions.isEmpty)
+                    Text('  No permissions')
+                  else
+                    ...permissions.map((p) => Text('  • ${p.id} (${p.name})')),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Navigation:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('  Visible Items: ${_visibleNavigationItems.length}'),
+                  Text('  Total Items: ${_allNavigationItems.length}'),
+                  Text('  Current Index: $_selectedIndex'),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Security Stats:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('  Navigation Attempts: $_navigationAttempts'),
+                  Text('  Blocked Attempts: $_blockedNavigationAttempts'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
   }
 
   /// Build security indicator
@@ -857,35 +1203,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   /// Show user management
   void _showUserManagement() {
     // Implementation for user management
-  }
-
-  /// Show debug information
-  void _showDebugInfo(Authenticated state) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Debug Information'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Navigation Attempts: $_navigationAttempts'),
-                  Text('Blocked Attempts: $_blockedNavigationAttempts'),
-                  Text('Visible Items: ${_visibleNavigationItems.length}'),
-                  Text('Total Items: ${_allNavigationItems.length}'),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-    );
   }
 
   /// Show sign out confirmation dialog

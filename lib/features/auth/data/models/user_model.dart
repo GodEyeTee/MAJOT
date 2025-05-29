@@ -39,7 +39,9 @@ class UserModel extends User {
       id: user.uid,
       email: user.email,
       displayName: user.displayName ?? _generateDisplayName(user.email),
-      role: UserRole.guest, // แก้เป็น guest แทน user
+      role:
+          UserRole
+              .guest, // Firebase users start as guest - will be updated from Supabase
       photoURL: user.photoURL,
       emailVerified: user.emailVerified,
       phoneNumber: user.phoneNumber,
@@ -55,6 +57,7 @@ class UserModel extends User {
         'last_signin_time': user.metadata.lastSignInTime?.toIso8601String(),
         'is_anonymous': user.isAnonymous,
         'tenant_id': user.tenantId,
+        'role_source': 'firebase_initial', // Mark as initial Firebase role
       },
     );
   }
@@ -62,14 +65,24 @@ class UserModel extends User {
   /// Create UserModel from JSON with comprehensive validation
   factory UserModel.fromJson(Map<String, dynamic> json) {
     try {
-      // Parse role with fallback - แก้เป็น guest
-      UserRole userRole = UserRole.guest; // เปลี่ยนจาก user เป็น guest
+      print('🔍 Parsing UserModel from JSON: $json'); // Debug log
+
+      // Parse role with debugging
+      UserRole userRole = UserRole.guest;
       if (json['role'] != null) {
-        final roleString = json['role'].toString().toLowerCase();
+        final roleString = json['role'].toString().toLowerCase().trim();
+        print('🔍 Found role in JSON: "$roleString"'); // Debug log
+
         userRole = UserRole.values.firstWhere(
           (role) => role.name.toLowerCase() == roleString,
-          orElse: () => UserRole.guest, // เปลี่ยนจาก user เป็น guest
+          orElse: () {
+            print('⚠️ Unknown role "$roleString", defaulting to guest');
+            return UserRole.guest;
+          },
         );
+        print('✅ Parsed role: $userRole');
+      } else {
+        print('⚠️ No role found in JSON, using guest');
       }
 
       // Parse timestamps safely
@@ -94,20 +107,24 @@ class UserModel extends User {
         metadata = Map<String, dynamic>.from(json['metadata']);
       }
 
+      // Add source information
+      metadata['role_source'] = 'supabase';
+      metadata['parsed_at'] = DateTime.now().toIso8601String();
+
       // Parse linked providers
       List<String> linkedProviders = [];
       if (json['linked_providers'] is List) {
         linkedProviders = List<String>.from(json['linked_providers']);
       }
 
-      return UserModel(
+      final userModel = UserModel(
         id: json['id']?.toString() ?? '',
         email: json['email']?.toString(),
         displayName:
             json['full_name']?.toString() ??
             json['display_name']?.toString() ??
             _generateDisplayName(json['email']?.toString()),
-        role: userRole, // ใช้ role ที่ parse มาจาก Supabase
+        role: userRole, // Use parsed role from Supabase
         photoURL:
             json['photo_url']?.toString() ?? json['avatar_url']?.toString(),
         emailVerified: json['email_verified'] == true,
@@ -120,18 +137,25 @@ class UserModel extends User {
         provider: json['provider']?.toString(),
         linkedProviders: linkedProviders,
       );
+
+      print('✅ Successfully parsed UserModel with role: ${userModel.role}');
+      return userModel;
     } catch (e) {
       if (!kReleaseMode) {
         print('❌ Error parsing UserModel from JSON: $e');
         print('JSON data: $json');
       }
 
-      // Return basic user model with minimal data - แก้เป็น guest
+      // Return basic user model with minimal data
       return UserModel(
         id: json['id']?.toString() ?? '',
         email: json['email']?.toString(),
         displayName: json['full_name']?.toString() ?? 'User',
-        role: UserRole.guest, // เปลี่ยนจาก user เป็น guest
+        role: UserRole.guest,
+        metadata: {
+          'parse_error': e.toString(),
+          'role_source': 'error_fallback',
+        },
       );
     }
   }
