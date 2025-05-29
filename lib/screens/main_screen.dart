@@ -165,6 +165,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _lastSecurityCheck = DateTime.now();
 
     final previousCount = _visibleNavigationItems.length;
+    print(
+      '🔍 Current permissions: ${_rbacService.getCurrentUserPermissions().map((p) => p.id).toList()}',
+    );
     _updateVisibleNavigationItems();
     final currentCount = _visibleNavigationItems.length;
 

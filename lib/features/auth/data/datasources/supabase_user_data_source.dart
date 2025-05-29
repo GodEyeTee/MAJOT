@@ -146,7 +146,7 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
           .limit(1)
           .timeout(const Duration(seconds: 5));
 
-      final isValid = response != null;
+      final isValid = response.isNotEmpty;
 
       if (!_isProduction) {
         print(

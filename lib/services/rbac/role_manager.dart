@@ -202,7 +202,6 @@ class RoleManager {
         level: PermissionLevel.basic,
       ),
     ],
-    // *** แก้ไขส่วนนี้ - ลบ book_hotels และ purchase_products ออก ***
     UserRole.user: [
       const Permission(
         id: 'use_scanner',
@@ -211,8 +210,6 @@ class RoleManager {
         category: 'tools',
         level: PermissionLevel.basic,
       ),
-      // ลบ book_hotels และ purchase_products ออกแล้ว
-      // ทำให้ user เข้าได้แค่: home, settings, wallet, scanner
     ],
     UserRole.guest: [],
   };

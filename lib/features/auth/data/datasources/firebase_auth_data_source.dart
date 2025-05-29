@@ -174,7 +174,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       } on firebase.FirebaseAuthException catch (e) {
         _recordFailedAttempt();
         throw _handleFirebaseAuthException(e);
-      } on AuthException catch (e) {
+      } on AuthException {
         _recordFailedAttempt();
         rethrow;
       } catch (e) {
