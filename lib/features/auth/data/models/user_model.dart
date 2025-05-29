@@ -274,6 +274,7 @@ class UserModel extends User {
   }
 
   /// Get user initials for avatar
+  @override
   String get initials {
     if (displayName == null || displayName!.isEmpty) {
       return email?.substring(0, 1).toUpperCase() ?? 'U';
@@ -287,6 +288,7 @@ class UserModel extends User {
   }
 
   /// Get display name with fallback
+  @override
   String get safeDisplayName {
     if (displayName != null && displayName!.isNotEmpty) {
       return displayName!;
@@ -364,6 +366,7 @@ class UserModel extends User {
   }
 
   /// Validate user data integrity
+  @override
   bool isValid() {
     try {
       // Required fields
@@ -387,8 +390,9 @@ class UserModel extends User {
       // Date validation
       if (createdAt != null && createdAt!.isAfter(DateTime.now())) return false;
       if (updatedAt != null && updatedAt!.isAfter(DateTime.now())) return false;
-      if (lastLoginAt != null && lastLoginAt!.isAfter(DateTime.now()))
+      if (lastLoginAt != null && lastLoginAt!.isAfter(DateTime.now())) {
         return false;
+      }
 
       return true;
     } catch (e) {
@@ -573,14 +577,18 @@ class UserSearchCriteria {
     if (role != null) params['role'] = role!.name;
     if (isActive != null) params['is_active'] = isActive;
     if (emailVerified != null) params['email_verified'] = emailVerified;
-    if (createdAfter != null)
+    if (createdAfter != null) {
       params['created_after'] = createdAfter!.toIso8601String();
-    if (createdBefore != null)
+    }
+    if (createdBefore != null) {
       params['created_before'] = createdBefore!.toIso8601String();
-    if (lastLoginAfter != null)
+    }
+    if (lastLoginAfter != null) {
       params['last_login_after'] = lastLoginAfter!.toIso8601String();
-    if (lastLoginBefore != null)
+    }
+    if (lastLoginBefore != null) {
       params['last_login_before'] = lastLoginBefore!.toIso8601String();
+    }
     if (provider != null) params['provider'] = provider;
     if (limit != null) params['limit'] = limit;
     if (offset != null) params['offset'] = offset;

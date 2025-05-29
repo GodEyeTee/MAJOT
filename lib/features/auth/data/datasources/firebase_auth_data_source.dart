@@ -176,7 +176,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         throw _handleFirebaseAuthException(e);
       } on AuthException catch (e) {
         _recordFailedAttempt();
-        throw e;
+        rethrow;
       } catch (e) {
         _recordFailedAttempt();
         throw AuthException(
@@ -539,9 +539,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       'failed_attempts': _failedAttempts,
       'success_rate':
           _signInAttempts > 0
-              ? (((_signInAttempts - _failedAttempts) / _signInAttempts) * 100)
-                      .toStringAsFixed(1) +
-                  '%'
+              ? '${(((_signInAttempts - _failedAttempts) / _signInAttempts) * 100).toStringAsFixed(1)}%'
               : '0%',
       'last_sign_in_attempt': _lastSignInAttempt?.toIso8601String(),
       'last_token_refresh': _lastTokenRefresh?.toIso8601String(),
@@ -560,9 +558,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       'failed_attempts': _failedAttempts,
       'success_rate':
           _signInAttempts > 0
-              ? ((_signInAttempts - _failedAttempts) / _signInAttempts * 100)
-                      .toStringAsFixed(1) +
-                  '%'
+              ? '${((_signInAttempts - _failedAttempts) / _signInAttempts * 100).toStringAsFixed(1)}%'
               : '0%',
       'current_user_verified': _cachedUser?.emailVerified ?? false,
       'token_management': {

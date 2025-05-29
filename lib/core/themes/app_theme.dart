@@ -12,7 +12,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      cardTheme: const CardTheme(elevation: 2, margin: EdgeInsets.all(8)),
+      cardTheme: const CardThemeData(elevation: 2, margin: EdgeInsets.all(8)),
       buttonTheme: ButtonThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         buttonColor: Colors.blue,
@@ -59,7 +59,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      cardTheme: const CardTheme(
+      cardTheme: const CardThemeData(
         color: Color(0xFF1F1F1F),
         elevation: 2,
         margin: EdgeInsets.all(8),
