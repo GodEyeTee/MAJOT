@@ -56,3 +56,5 @@ windows/
 test/
 assets/config/
 web/
+
+google-services.json

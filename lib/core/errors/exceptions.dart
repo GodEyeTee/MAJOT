@@ -1,25 +1,22 @@
 abstract class AppException implements Exception {
+  const AppException(this.message, {this.code, this.cause, this.context});
+
   final String message;
   final String? code;
   final dynamic cause;
   final Map<String, dynamic>? context;
-
-  const AppException(this.message, {this.code, this.cause, this.context});
 
   @override
   String toString() => message;
 }
 
 class ServerException extends AppException {
-  const ServerException([
-    String message = 'Server error occurred',
-    String? code,
-  ]) : super(message, code: code);
+  const ServerException([super.message = 'Server error occurred', String? code])
+    : super(code: code);
 }
 
 class DatabaseException extends AppException {
-  const DatabaseException(String message, [dynamic cause])
-    : super(message, cause: cause);
+  const DatabaseException(super.message, [dynamic cause]) : super(cause: cause);
 
   @override
   String toString() =>
@@ -27,15 +24,10 @@ class DatabaseException extends AppException {
 }
 
 class AuthException extends AppException {
-  const AuthException(
-    String message, {
-    String? code,
-    dynamic cause,
-    Map<String, dynamic>? context,
-  }) : super(message, code: code, cause: cause, context: context);
+  const AuthException(super.message, {super.code, super.cause, super.context});
 }
 
 class CacheException extends AppException {
-  const CacheException([String message = 'Cache error occurred', String? code])
-    : super(message, code: code);
+  const CacheException([super.message = 'Cache error occurred', String? code])
+    : super(code: code);
 }

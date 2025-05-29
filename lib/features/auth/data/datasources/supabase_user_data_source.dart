@@ -131,15 +131,13 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   @override
   Future<bool> validateConnection() async {
     try {
-      // Enhanced connection validation with proper timeout
       final response = await supabaseClient
           .from('users')
           .select('id')
           .limit(1)
           .timeout(const Duration(seconds: 5));
 
-      // Check if response is valid (should be a List)
-      final isValid = response is List;
+      final isValid = response != null;
 
       if (!_isProduction) {
         print(
@@ -151,7 +149,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
 
       return isValid;
     } catch (e) {
-      // Enhanced logging for debugging
       if (!_isProduction) {
         print('⚠️ Supabase connection validation failed: $e');
       }

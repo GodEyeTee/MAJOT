@@ -704,7 +704,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       builder:
           (context) => AlertDialog(
             title: const Text('User Profile'),
-            content: PermissionDebugInfo(showFullDetails: true),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Email: ${state.user?.email ?? "No email"}'),
+                Text('Role: ${state.user?.role.displayName ?? "No role"}'),
+              ],
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -740,14 +746,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         builder:
             (context) => Scaffold(
               appBar: AppBar(title: const Text('Permission Debug')),
-              body: const SingleChildScrollView(
-                child: Column(
-                  children: [
-                    PermissionDebugInfo(showFullDetails: true),
-                    SizedBox(height: 16),
-                    PermissionListView(),
-                  ],
-                ),
+              body: const Center(
+                child: Text('Permission debug info will be shown here'),
               ),
             ),
       ),
@@ -766,18 +766,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   /// Show debug information
   void _showDebugInfo(Authenticated state) {
-    final stats = {
-      'Navigation Attempts': _navigationAttempts,
-      'Blocked Attempts': _blockedNavigationAttempts,
-      'Success Rate':
-          _navigationAttempts > 0
-              ? '${(((_navigationAttempts - _blockedNavigationAttempts) / _navigationAttempts) * 100).toStringAsFixed(1)}%'
-              : '0%',
-      'Visible Items': _visibleNavigationItems.length,
-      'Total Items': _allNavigationItems.length,
-      'Last Security Check': _lastSecurityCheck?.toIso8601String() ?? 'Never',
-    };
-
     showDialog(
       context: context,
       builder:
@@ -788,14 +776,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ...stats.entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Text('${entry.key}: ${entry.value}'),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const PermissionDebugInfo(),
+                  Text('Navigation Attempts: $_navigationAttempts'),
+                  Text('Blocked Attempts: $_blockedNavigationAttempts'),
+                  Text('Visible Items: ${_visibleNavigationItems.length}'),
+                  Text('Total Items: ${_allNavigationItems.length}'),
                 ],
               ),
             ),

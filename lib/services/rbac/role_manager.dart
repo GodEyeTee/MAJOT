@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// User role enumeration with comprehensive role metadata
 enum UserRole { admin, editor, user, guest }
 
