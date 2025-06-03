@@ -3,12 +3,22 @@
 multifuntion aplication
 
 ## data base sql editor 
-```CREATE TABLE users (
-  id uuid PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
+```
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE,
   full_name TEXT,
-  role TEXT DEFAULT 'user',
-  created_at TIMESTAMP DEFAULT NOW()
+  role TEXT DEFAULT 'guest',
+  photo_url TEXT,
+  email_verified BOOLEAN DEFAULT false,
+  phone_number TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_login_at TIMESTAMPTZ,
+  is_active BOOLEAN DEFAULT true,
+  provider TEXT,
+  linked_providers TEXT[],
+  metadata JSONB DEFAULT '{}'
 );
 ```
 
