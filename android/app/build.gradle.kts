@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
-    id("com.google.gms.google-services") version "4.4.2" apply false
+    id("com.google.gms.google-services") version "4.4.2" apply true
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.my_test_app"
+    namespace = "com.example.roomie789"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
