@@ -69,7 +69,7 @@ class NetworkInfoImpl implements NetworkInfo {
   NetworkInfoImpl(this.connectionChecker) {
     _initializeMonitoring();
     if (!kReleaseMode) {
-      print('🌐 NetworkInfo initialized with enhanced monitoring');
+      debugPrint('🌐 NetworkInfo initialized with enhanced monitoring');
     }
   }
 
@@ -155,7 +155,7 @@ class NetworkInfoImpl implements NetworkInfo {
       _connectionController?.add(_isConnected);
 
       if (!kReleaseMode) {
-        print(
+        debugPrint(
           '🌐 Connection check: ${_isConnected ? "connected" : "disconnected"}',
         );
       }
@@ -167,7 +167,7 @@ class NetworkInfoImpl implements NetworkInfo {
       _connectionStartTime = null;
 
       if (!kReleaseMode) {
-        print('❌ Connection check failed: $e');
+        debugPrint('❌ Connection check failed: $e');
       }
 
       _connectionController?.add(false);
@@ -197,12 +197,14 @@ class NetworkInfoImpl implements NetworkInfo {
       }
 
       if (!kReleaseMode) {
-        print('🌐 Connection quality: ${_currentQuality.name} (${latency}ms)');
+        debugPrint(
+          '🌐 Connection quality: ${_currentQuality.name} (${latency}ms)',
+        );
       }
     } catch (e) {
       _currentQuality = NetworkQuality.poor;
       if (!kReleaseMode) {
-        print('❌ Quality assessment failed: $e');
+        debugPrint('❌ Quality assessment failed: $e');
       }
     }
   }
@@ -227,9 +229,9 @@ class NetworkInfoImpl implements NetworkInfo {
   Future<void> _handleConnectionChange(bool isConnected) async {
     if (!kReleaseMode) {
       if (isConnected) {
-        print('✅ Network connection restored');
+        debugPrint('✅ Network connection restored');
       } else {
-        print('❌ Network connection lost');
+        debugPrint('❌ Network connection lost');
       }
     }
 
@@ -322,7 +324,7 @@ class NetworkInfoImpl implements NetworkInfo {
   /// Force refresh connection status
   Future<bool> forceRefresh() async {
     if (!kReleaseMode) {
-      print('🔄 Forcing network status refresh...');
+      debugPrint('🔄 Forcing network status refresh...');
     }
 
     return await _performConnectionCheck();
@@ -357,7 +359,7 @@ class NetworkInfoImpl implements NetworkInfo {
       }
     } catch (e) {
       if (!kReleaseMode) {
-        print('❌ Connection test to $host:$port failed: $e');
+        debugPrint('❌ Connection test to $host:$port failed: $e');
       }
     }
     return false;
@@ -371,11 +373,11 @@ class NetworkInfoImpl implements NetworkInfo {
       _connectionController?.close();
 
       if (!kReleaseMode) {
-        print('🧹 NetworkInfo disposed');
+        debugPrint('🧹 NetworkInfo disposed');
       }
     } catch (e) {
       if (!kReleaseMode) {
-        print('⚠️ NetworkInfo disposal error: $e');
+        debugPrint('⚠️ NetworkInfo disposal error: $e');
       }
     }
   }
@@ -425,7 +427,7 @@ class NetworkMonitoringService {
         listener(isConnected);
       } catch (e) {
         if (!kReleaseMode) {
-          print('❌ Network listener error: $e');
+          debugPrint('❌ Network listener error: $e');
         }
       }
     }

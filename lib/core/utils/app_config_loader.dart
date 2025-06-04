@@ -30,7 +30,7 @@ class AppConfig {
   ]) async {
     try {
       if (!kReleaseMode) {
-        print('📋 Loading app configuration from: $path');
+        debugPrint('📋 Loading app configuration from: $path');
       }
 
       // Load configuration file
@@ -41,18 +41,18 @@ class AppConfig {
       final appConfig = _validateAndBuildConfig(config);
 
       if (!kReleaseMode) {
-        print('✅ App configuration loaded successfully');
-        _printConfigSummary(appConfig);
+        debugPrint('✅ App configuration loaded successfully');
+        _debugPrintConfigSummary(appConfig);
       }
 
       return appConfig;
     } catch (e) {
       if (!kReleaseMode) {
-        print('❌ Failed to load app configuration: $e');
+        debugPrint('❌ Failed to load app configuration: $e');
       }
 
       // Always return fallback configuration when loading fails
-      print('🔄 Using fallback configuration');
+      debugPrint('🔄 Using fallback configuration');
       return _createFallbackConfig();
     }
   }
@@ -266,21 +266,23 @@ class AppConfig {
     return key.isNotEmpty && key.length >= 20 && key.length <= 500;
   }
 
-  /// Print configuration summary for debugging
-  static void _printConfigSummary(AppConfig config) {
+  /// debugPrint configuration summary for debugging
+  static void _debugPrintConfigSummary(AppConfig config) {
     if (kReleaseMode) return;
 
-    print('📋 Configuration Summary:');
-    print('   Environment: ${config.environment}');
-    print('   Version: ${config.version}');
-    print('   Supabase URL: ${_maskUrl(config.supabaseUrl)}');
-    print('   Anonymous Key: ${_maskKey(config.anonKey)}');
-    print(
+    debugPrint('📋 Configuration Summary:');
+    debugPrint('   Environment: ${config.environment}');
+    debugPrint('   Version: ${config.version}');
+    debugPrint('   Supabase URL: ${_maskUrl(config.supabaseUrl)}');
+    debugPrint('   Anonymous Key: ${_maskKey(config.anonKey)}');
+    debugPrint(
       '   Service Role Key: ${config.serviceRoleKey != null ? _maskKey(config.serviceRoleKey!) : 'Not configured'}',
     );
-    print('   Features: ${config.features.length} configured');
-    print('   Security Settings: ${config.security.length} configured');
-    print('   Performance Settings: ${config.performance.length} configured');
+    debugPrint('   Features: ${config.features.length} configured');
+    debugPrint('   Security Settings: ${config.security.length} configured');
+    debugPrint(
+      '   Performance Settings: ${config.performance.length} configured',
+    );
   }
 
   /// Mask URL for secure logging
@@ -457,11 +459,11 @@ class ConfigurationManager {
       _loadTime = DateTime.now();
 
       if (!kReleaseMode) {
-        print('✅ Configuration manager initialized');
+        debugPrint('✅ Configuration manager initialized');
       }
     } catch (e) {
       if (!kReleaseMode) {
-        print('❌ Configuration manager initialization failed: $e');
+        debugPrint('❌ Configuration manager initialization failed: $e');
       }
       rethrow;
     }
@@ -505,7 +507,7 @@ class ConfigurationManager {
     _loadTime = null;
 
     if (!kReleaseMode) {
-      print('🧹 Configuration manager reset');
+      debugPrint('🧹 Configuration manager reset');
     }
   }
 }
