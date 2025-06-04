@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Core
 import '../network/network_info.dart';
@@ -19,6 +20,15 @@ import '../../features/auth/domain/usecases/sign_out.dart';
 import '../../features/auth/domain/usecases/get_current_user.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 
+// Theme feature
+import '../../features/theme/data/datasources/theme_local_data_source.dart';
+import '../../features/theme/data/repositories/theme_repository_impl.dart';
+import '../../features/theme/domain/repositories/theme_repository.dart';
+import '../../features/theme/domain/usecases/get_theme_preference.dart';
+import '../../features/theme/domain/usecases/save_theme_preference.dart';
+import '../../features/theme/domain/usecases/watch_theme_changes.dart';
+import '../../features/theme/presentation/bloc/theme_bloc.dart';
+
 // Services
 import '../../services/rbac/role_manager.dart';
 import '../../services/rbac/rbac_service.dart';
@@ -29,6 +39,7 @@ Future<void> init() async {
   await _registerExternalDependencies();
   await _registerCoreServices();
   await _registerAuthFeature();
+  await _registerThemeFeature();
 }
 
 Future<void> _registerExternalDependencies() async {
@@ -50,6 +61,10 @@ Future<void> _registerExternalDependencies() async {
   sl.registerLazySingleton<InternetConnectionChecker>(
     () => InternetConnectionChecker.createInstance(),
   );
+
+  // Local Storage
+  final sharedPreferences = await SharedPreferences.getInstance();
+  sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
 }
 
 Future<void> _registerCoreServices() async {
@@ -104,6 +119,32 @@ Future<void> _registerAuthFeature() async {
       isAuthenticatedUseCase: sl<IsAuthenticated>(),
       getCurrentUserUseCase: sl<GetCurrentUser>(),
       authRepository: sl<AuthRepository>(),
+    ),
+  );
+}
+
+Future<void> _registerThemeFeature() async {
+  // Data sources
+  sl.registerLazySingleton<ThemeLocalDataSource>(
+    () => ThemeLocalDataSourceImpl(sharedPreferences: sl()),
+  );
+
+  // Repository
+  sl.registerLazySingleton<ThemeRepository>(
+    () => ThemeRepositoryImpl(localDataSource: sl()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetThemePreference(sl()));
+  sl.registerLazySingleton(() => SaveThemePreference(sl()));
+  sl.registerLazySingleton(() => WatchThemeChanges(sl()));
+
+  // BLoC
+  sl.registerFactory(
+    () => ThemeBloc(
+      getThemePreference: sl(),
+      saveThemePreference: sl(),
+      watchThemeChanges: sl(),
     ),
   );
 }

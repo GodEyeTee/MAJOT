@@ -238,7 +238,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 16),
                 Text(
                   'Contact your administrator to request access to these features.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: const Color.fromARGB(255, 61, 202, 18),
+                  ),
                 ),
               ],
             ),
@@ -350,8 +352,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       currentIndex: _selectedIndex,
-      selectedItemColor: Theme.of(context).primaryColor,
-      unselectedItemColor: Colors.grey,
+      selectedItemColor: const Color.fromARGB(255, 56, 76, 253),
+      unselectedItemColor: const Color.fromARGB(255, 253, 56, 56),
+      showSelectedLabels: true,
+      showUnselectedLabels: true,
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
       onTap: _onItemTapped,
       items:
           _visibleNavigationItems
