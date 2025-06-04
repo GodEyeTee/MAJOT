@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/utils/app_config_loader.dart';
+import 'core/services/supabase_service_client.dart';
 import 'core/di/injection_container.dart' as di;
 import 'app.dart';
 
@@ -19,24 +20,63 @@ Future<void> main() async {
 }
 
 Future<void> _initializeApp() async {
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  print('🚀 Starting app initialization...');
 
-  // Initialize Supabase with fallback configuration
+  // Initialize Firebase
+  print('🔥 Initializing Firebase...');
+  await Firebase.initializeApp();
+  print('✅ Firebase initialized');
+
+  // Load app configuration
+  print('📋 Loading app configuration...');
   AppConfig config;
   try {
     config = await AppConfig.fromAsset();
-    print('✅ Loaded configuration from assets');
+    print('✅ Configuration loaded from assets');
   } catch (e) {
     print('⚠️ Failed to load config from assets: $e');
     print('🔄 Using default configuration');
     config = _createDefaultConfig();
   }
 
+  // Validate service role key
+  if (config.serviceRoleKey == null || config.serviceRoleKey!.isEmpty) {
+    print('⚠️ Service role key not configured, using anon key only');
+  } else {
+    print('✅ Service role key configured');
+  }
+
+  // Initialize Supabase (regular client)
+  print('🗄️ Initializing Supabase client...');
   await Supabase.initialize(url: config.supabaseUrl, anonKey: config.anonKey);
+  print('✅ Supabase client initialized');
+
+  // Initialize Supabase Service Client (for RLS bypass)
+  if (config.serviceRoleKey != null && config.serviceRoleKey!.isNotEmpty) {
+    print('🔐 Initializing Supabase Service Client...');
+    try {
+      await SupabaseServiceClient().initialize(config);
+      print('✅ Supabase Service Client initialized');
+
+      // Test service connection
+      final connectionOk = await SupabaseServiceClient().testConnection();
+      print(
+        connectionOk
+            ? '✅ Service client connection test passed'
+            : '⚠️ Service client connection test failed',
+      );
+    } catch (e) {
+      print('❌ Failed to initialize Service Client: $e');
+      print('⚠️ Will continue with regular client only');
+    }
+  }
 
   // Initialize DI
+  print('🔧 Initializing dependency injection...');
   await di.init();
+  print('✅ Dependency injection initialized');
+
+  print('🎉 App initialization completed successfully!');
 }
 
 AppConfig _createDefaultConfig() {
@@ -44,6 +84,7 @@ AppConfig _createDefaultConfig() {
     supabaseUrl: 'https://localhost.supabase.co',
     anonKey:
         'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.default-anon-key',
+    serviceRoleKey: null, // No service key in fallback config
     environment: 'development',
     version: '1.0.0-dev',
     features: {

@@ -6,6 +6,7 @@ import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 // Core
 import '../network/network_info.dart';
+import '../services/supabase_service_client.dart';
 
 // Auth feature
 import '../../features/auth/data/datasources/firebase_auth_data_source.dart';
@@ -25,31 +26,56 @@ import '../../services/rbac/rbac_service.dart';
 final sl = GetIt.instance;
 
 Future<void> init() async {
+  print('🔧 Registering dependencies...');
+
   await _registerExternalDependencies();
   await _registerCoreServices();
   await _registerAuthFeature();
+
+  print('✅ All dependencies registered');
 }
 
 Future<void> _registerExternalDependencies() async {
+  print('🔧 Registering external dependencies...');
+
+  // Firebase
   sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   sl.registerLazySingleton<GoogleSignIn>(
     () => GoogleSignIn(scopes: ['email', 'profile']),
   );
+
+  // Supabase - Regular client (for public operations)
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+
+  // Supabase - Service client (for RLS bypass operations)
+  sl.registerLazySingleton<SupabaseServiceClient>(
+    () => SupabaseServiceClient(),
+  );
+
+  // Network
   sl.registerLazySingleton<InternetConnectionChecker>(
     () => InternetConnectionChecker.createInstance(),
   );
+
+  print('✅ External dependencies registered');
 }
 
 Future<void> _registerCoreServices() async {
+  print('🔧 Registering core services...');
+
   sl.registerLazySingleton<NetworkInfo>(
     () => NetworkInfoImpl(sl<InternetConnectionChecker>()),
   );
   sl.registerLazySingleton<RoleManager>(() => RoleManager());
   sl.registerLazySingleton<RBACService>(() => RBACService());
+
+  print('✅ Core services registered');
 }
 
 Future<void> _registerAuthFeature() async {
+  print('🔧 Registering auth feature...');
+
+  // Data sources
   sl.registerLazySingleton<FirebaseAuthDataSource>(
     () => FirebaseAuthDataSourceImpl(
       firebaseAuth: sl<FirebaseAuth>(),
@@ -57,10 +83,14 @@ Future<void> _registerAuthFeature() async {
     ),
   );
 
+  // *** แก้ไขตรงนี้ - ใช้ SupabaseServiceClient แทน SupabaseClient ***
   sl.registerLazySingleton<SupabaseUserDataSource>(
-    () => SupabaseUserDataSourceImpl(supabaseClient: sl<SupabaseClient>()),
+    () => SupabaseUserDataSourceImpl(
+      serviceClient: sl<SupabaseServiceClient>(), // ใช้ service client
+    ),
   );
 
+  // Repository
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       firebaseAuthDataSource: sl<FirebaseAuthDataSource>(),
@@ -68,6 +98,7 @@ Future<void> _registerAuthFeature() async {
     ),
   );
 
+  // Use cases
   sl.registerLazySingleton<SignInWithGoogle>(
     () => SignInWithGoogle(sl<AuthRepository>()),
   );
@@ -79,6 +110,7 @@ Future<void> _registerAuthFeature() async {
     () => GetCurrentUser(sl<AuthRepository>()),
   );
 
+  // BLoC
   sl.registerFactory<AuthBloc>(
     () => AuthBloc(
       signInWithGoogleUseCase: sl<SignInWithGoogle>(),
@@ -88,4 +120,6 @@ Future<void> _registerAuthFeature() async {
       authRepository: sl<AuthRepository>(),
     ),
   );
+
+  print('✅ Auth feature registered');
 }

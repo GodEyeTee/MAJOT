@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
 import '../features/auth/presentation/bloc/auth_state.dart';
 import '../features/auth/data/repositories/auth_repository_impl.dart';
 import '../features/auth/data/models/user_model.dart';
+import '../core/services/supabase_service_client.dart';
 import '../features/home/presentation/pages/home_page.dart';
 import '../features/wallet/presentation/pages/wallet_page.dart';
 import '../features/analytics/presentation/pages/analytics_page.dart';
@@ -615,7 +615,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Check Supabase data directly
+  /// Check Supabase data directly using Service Client
   Future<void> _checkSupabaseData(BuildContext context) async {
     final user = context.read<AuthBloc>().currentUser;
     if (user == null) {
@@ -624,8 +624,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       ).showSnackBar(const SnackBar(content: Text('No current user')));
       return;
     }
-    print('🔍 Firebase UID: ${user.id}');
-    print('🔍 UID Length: ${user.id.length}');
 
     showDialog(
       context: context,
@@ -636,21 +634,28 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 CircularProgressIndicator(),
                 SizedBox(width: 16),
-                Text('Checking Supabase...'),
+                Text('Checking Supabase with Service Client...'),
               ],
             ),
           ),
     );
 
     try {
-      // Check Supabase directly
-      final supabaseClient = supabase.Supabase.instance.client;
+      // ใช้ Service Client ที่ bypass RLS
+      final serviceClient = SupabaseServiceClient();
+
+      if (!serviceClient.isInitialized) {
+        throw Exception('Service client not initialized');
+      }
+
+      print('🔍 Checking user with Service Client: ${user.id}');
+
       final response =
-          await supabaseClient
+          await serviceClient.client
               .from('users')
               .select()
               .eq('id', user.id)
-              .maybeSingle(); // Use maybeSingle() instead of single()
+              .maybeSingle();
 
       Navigator.of(context).pop(); // Close loading dialog
 
@@ -658,7 +663,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         context: context,
         builder:
             (context) => AlertDialog(
-              title: const Text('Supabase Data'),
+              title: const Text('Supabase Data (Service Client)'),
               content: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,8 +673,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       'Current App User:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
+                    Text('  ID: ${user.id}'),
                     Text('  Email: ${user.email}'),
                     Text('  Role: ${user.role.name}'),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Service Client Info:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text('  Type: Service Role (bypasses RLS)'),
+                    Text('  Initialized: ${serviceClient.isInitialized}'),
                     const SizedBox(height: 16),
                     Text(
                       'Supabase Data:',
@@ -678,10 +691,34 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     if (response != null) ...[
                       Text('  ID: ${response['id']}'),
                       Text('  Email: ${response['email']}'),
-                      Text('  Role: ${response['role']}'),
+                      Text(
+                        '  Role: ${response['role']}',
+                        style: TextStyle(
+                          color:
+                              response['role'] != user.role.name
+                                  ? Colors.red
+                                  : Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       Text('  Full Name: ${response['full_name']}'),
                       Text('  Updated: ${response['updated_at']}'),
                       const SizedBox(height: 16),
+                      if (response['role'] != user.role.name) ...[
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[100],
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.orange),
+                          ),
+                          child: Text(
+                            '⚠️ Role mismatch detected!\nApp: ${user.role.name}\nDatabase: ${response['role']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       Text(
                         'Raw JSON:',
                         style: TextStyle(fontWeight: FontWeight.bold),
@@ -725,6 +762,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
               actions: [
+                if (response != null && response['role'] != user.role.name)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _forceRefreshUserData(context);
+                    },
+                    child: const Text(
+                      'Sync Role',
+                      style: TextStyle(color: Colors.orange),
+                    ),
+                  ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Close'),
