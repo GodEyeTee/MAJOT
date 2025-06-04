@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'role_manager.dart';
 import '../../features/auth/domain/entities/user.dart';
+import '../../core/services/logger_service.dart';
 
 class RBACService {
   static final RBACService _instance = RBACService._internal();
@@ -13,27 +13,26 @@ class RBACService {
   // Security monitoring
   int _accessAttempts = 0;
   int _deniedAttempts = 0;
-  final Map<String, int> _permissionAccessCount = {};
 
   void setCurrentUser(User? user) {
     _currentUser = user;
-    if (!kReleaseMode) {
-      print('🔄 RBAC: Current user set to: ${user?.email} (${user?.role})');
-    }
+    LoggerService.info(
+      'Current user set: ${user?.email} (${user?.role})',
+      'RBAC',
+    );
   }
 
   User? get currentUser => _currentUser;
 
   bool hasPermission(String permissionId) {
     _accessAttempts++;
-    _permissionAccessCount[permissionId] =
-        (_permissionAccessCount[permissionId] ?? 0) + 1;
 
     if (_currentUser == null) {
       _deniedAttempts++;
-      if (!kReleaseMode) {
-        print('⚠️ RBAC: No current user, permission denied for: $permissionId');
-      }
+      LoggerService.warning(
+        'No current user, permission denied: $permissionId',
+        'RBAC',
+      );
       return false;
     }
 
@@ -42,19 +41,12 @@ class RBACService {
       permissionId,
     );
 
-    if (hasAccess) {
-      if (!kReleaseMode) {
-        print(
-          '✅ RBAC: Permission granted for ${_currentUser!.email}: $permissionId',
-        );
-      }
-    } else {
+    if (!hasAccess) {
       _deniedAttempts++;
-      if (!kReleaseMode) {
-        print(
-          '❌ RBAC: Permission denied for ${_currentUser!.email}: $permissionId',
-        );
-      }
+      LoggerService.warning(
+        'Permission denied for ${_currentUser!.email}: $permissionId',
+        'RBAC',
+      );
     }
 
     return hasAccess;
@@ -62,61 +54,34 @@ class RBACService {
 
   bool hasAnyPermission(List<String> permissions) {
     if (_currentUser == null) {
-      if (!kReleaseMode) {
-        print(
-          '⚠️ RBAC: No current user, access denied for permissions: $permissions',
-        );
-      }
+      LoggerService.warning(
+        'No current user, access denied for permissions: $permissions',
+        'RBAC',
+      );
       return false;
     }
 
-    final hasAccess = permissions.any(
-      (permission) => hasPermission(permission),
-    );
-    if (!kReleaseMode) {
-      print(
-        '🔍 RBAC: hasAnyPermission check for ${permissions.join(', ')}: $hasAccess',
-      );
-    }
-    return hasAccess;
+    return permissions.any((permission) => hasPermission(permission));
   }
 
   bool hasAllPermissions(List<String> permissions) {
     if (_currentUser == null) {
-      if (!kReleaseMode) {
-        print(
-          '⚠️ RBAC: No current user, access denied for all permissions: $permissions',
-        );
-      }
+      LoggerService.warning(
+        'No current user, access denied for all permissions: $permissions',
+        'RBAC',
+      );
       return false;
     }
 
-    final hasAccess = permissions.every(
-      (permission) => hasPermission(permission),
-    );
-    if (!kReleaseMode) {
-      print(
-        '🔍 RBAC: hasAllPermissions check for ${permissions.join(', ')}: $hasAccess',
-      );
-    }
-    return hasAccess;
+    return permissions.every((permission) => hasPermission(permission));
   }
 
   List<Permission> getCurrentUserPermissions() {
     if (_currentUser == null) {
-      if (!kReleaseMode) {
-        print('⚠️ RBAC: No current user, returning empty permissions');
-      }
       return [];
     }
 
-    final permissions = _roleManager.getPermissionsForRole(_currentUser!.role);
-    if (!kReleaseMode) {
-      print(
-        '📋 RBAC: Current user permissions: ${permissions.map((p) => p.id).join(', ')}',
-      );
-    }
-    return permissions;
+    return _roleManager.getPermissionsForRole(_currentUser!.role);
   }
 
   // Security statistics
@@ -132,7 +97,6 @@ class RBACService {
                 ? '${(((_accessAttempts - _deniedAttempts) / _accessAttempts) * 100).toStringAsFixed(1)}%'
                 : '0.0%',
       },
-      'permission_usage': _permissionAccessCount,
     };
   }
 
@@ -161,36 +125,16 @@ class RBACService {
   int _calculateHealthScore() {
     int score = 0;
 
-    // User authenticated (40 points)
     if (_currentUser != null) score += 40;
-
-    // Role assigned (20 points)
     if (_currentUser?.role != null) score += 20;
-
-    // Has permissions (20 points)
     if (getCurrentUserPermissions().isNotEmpty) score += 20;
 
-    // Good access success rate (20 points)
     if (_accessAttempts > 0) {
       final successRate = (_accessAttempts - _deniedAttempts) / _accessAttempts;
       score += (successRate * 20).round();
     }
 
     return score.clamp(0, 100);
-  }
-
-  // Helper method for debug
-  void printCurrentUserInfo() {
-    if (_currentUser != null) {
-      print('👤 Current User Info:');
-      print('   Email: ${_currentUser!.email}');
-      print('   Role: ${_currentUser!.role}');
-      print(
-        '   Permissions: ${getCurrentUserPermissions().map((p) => p.id).join(', ')}',
-      );
-    } else {
-      print('👤 No current user logged in');
-    }
   }
 
   // Helper methods for role checking
@@ -204,6 +148,6 @@ class RBACService {
     _currentUser = null;
     _accessAttempts = 0;
     _deniedAttempts = 0;
-    _permissionAccessCount.clear();
+    LoggerService.info('Security context cleared', 'RBAC');
   }
 }

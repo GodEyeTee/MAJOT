@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'core/utils/app_config_loader.dart';
 import 'core/services/supabase_service_client.dart';
+import 'core/services/logger_service.dart';
 import 'core/di/injection_container.dart' as di;
 import 'app.dart';
 
@@ -14,69 +16,93 @@ Future<void> main() async {
     await _initializeApp();
     runApp(const App());
   } catch (e) {
-    print('❌ App initialization failed: $e');
+    LoggerService.error('App initialization failed', 'MAIN', e);
     runApp(_buildErrorApp(e.toString()));
   }
 }
 
 Future<void> _initializeApp() async {
-  print('🚀 Starting app initialization...');
+  LoggerService.info('Starting app initialization', 'MAIN');
 
   // Initialize Firebase
-  print('🔥 Initializing Firebase...');
+  LoggerService.info('Initializing Firebase', 'FIREBASE');
   await Firebase.initializeApp();
-  print('✅ Firebase initialized');
+  LoggerService.info('Firebase initialized successfully', 'FIREBASE');
 
   // Load app configuration
-  print('📋 Loading app configuration...');
+  LoggerService.info('Loading app configuration', 'CONFIG');
   AppConfig config;
   try {
     config = await AppConfig.fromAsset();
-    print('✅ Configuration loaded from assets');
+    LoggerService.info('Configuration loaded from assets', 'CONFIG');
   } catch (e) {
-    print('⚠️ Failed to load config from assets: $e');
-    print('🔄 Using default configuration');
+    LoggerService.warning(
+      'Failed to load config from assets, using default',
+      'CONFIG',
+    );
     config = _createDefaultConfig();
   }
 
   // Validate service role key
   if (config.serviceRoleKey == null || config.serviceRoleKey!.isEmpty) {
-    print('⚠️ Service role key not configured, using anon key only');
+    LoggerService.warning(
+      'Service role key not configured, using anon key only',
+      'CONFIG',
+    );
   } else {
-    print('✅ Service role key configured');
+    LoggerService.info('Service role key configured', 'CONFIG');
   }
 
   // Initialize Supabase (regular client)
-  print('🗄️ Initializing Supabase client...');
+  LoggerService.info('Initializing Supabase client', 'SUPABASE');
   await Supabase.initialize(url: config.supabaseUrl, anonKey: config.anonKey);
-  print('✅ Supabase client initialized');
+  LoggerService.info('Supabase client initialized successfully', 'SUPABASE');
 
   // Initialize Supabase Service Client (for RLS bypass)
   if (config.serviceRoleKey != null && config.serviceRoleKey!.isNotEmpty) {
-    print('🔐 Initializing Supabase Service Client...');
+    LoggerService.info(
+      'Initializing Supabase Service Client',
+      'SUPABASE_SERVICE',
+    );
     try {
       await SupabaseServiceClient().initialize(config);
-      print('✅ Supabase Service Client initialized');
+      LoggerService.info(
+        'Supabase Service Client initialized successfully',
+        'SUPABASE_SERVICE',
+      );
 
       // Test service connection
       final connectionOk = await SupabaseServiceClient().testConnection();
-      print(
-        connectionOk
-            ? '✅ Service client connection test passed'
-            : '⚠️ Service client connection test failed',
-      );
+      if (connectionOk) {
+        LoggerService.info(
+          'Service client connection test passed',
+          'SUPABASE_SERVICE',
+        );
+      } else {
+        LoggerService.warning(
+          'Service client connection test failed',
+          'SUPABASE_SERVICE',
+        );
+      }
     } catch (e) {
-      print('❌ Failed to initialize Service Client: $e');
-      print('⚠️ Will continue with regular client only');
+      LoggerService.error(
+        'Failed to initialize Service Client',
+        'SUPABASE_SERVICE',
+        e,
+      );
+      LoggerService.warning(
+        'Will continue with regular client only',
+        'SUPABASE_SERVICE',
+      );
     }
   }
 
   // Initialize DI
-  print('🔧 Initializing dependency injection...');
+  LoggerService.info('Initializing dependency injection', 'DI');
   await di.init();
-  print('✅ Dependency injection initialized');
+  LoggerService.info('Dependency injection initialized successfully', 'DI');
 
-  print('🎉 App initialization completed successfully!');
+  LoggerService.info('App initialization completed successfully', 'MAIN');
 }
 
 AppConfig _createDefaultConfig() {
@@ -84,7 +110,7 @@ AppConfig _createDefaultConfig() {
     supabaseUrl: 'https://localhost.supabase.co',
     anonKey:
         'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQxNzY5MjAwLCJleHAiOjE5NTczNDUyMDB9.default-anon-key',
-    serviceRoleKey: null, // No service key in fallback config
+    serviceRoleKey: null,
     environment: 'development',
     version: '1.0.0-dev',
     features: {

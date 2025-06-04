@@ -1,9 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/foundation.dart';
+
 import '../../domain/entities/user.dart';
 import '../../../../services/rbac/role_manager.dart';
+import '../../../../core/services/logger_service.dart';
 
-/// Enhanced user model with comprehensive data management and security features
 class UserModel extends User {
   final String? photoURL;
   final bool emailVerified;
@@ -33,15 +34,12 @@ class UserModel extends User {
     this.linkedProviders = const [],
   });
 
-  /// Create UserModel from Firebase User with enhanced data extraction
   factory UserModel.fromFirebaseUser(firebase.User user) {
     return UserModel(
       id: user.uid,
       email: user.email,
       displayName: user.displayName ?? _generateDisplayName(user.email),
-      role:
-          UserRole
-              .guest, // Firebase users start as guest - will be updated from Supabase
+      role: UserRole.guest,
       photoURL: user.photoURL,
       emailVerified: user.emailVerified,
       phoneNumber: user.phoneNumber,
@@ -57,61 +55,54 @@ class UserModel extends User {
         'last_signin_time': user.metadata.lastSignInTime?.toIso8601String(),
         'is_anonymous': user.isAnonymous,
         'tenant_id': user.tenantId,
-        'role_source': 'firebase_initial', // Mark as initial Firebase role
+        'role_source': 'firebase_initial',
       },
     );
   }
 
-  /// Create UserModel from JSON with comprehensive validation
   factory UserModel.fromJson(Map<String, dynamic> json) {
     try {
-      print('🔍 Parsing UserModel from JSON: $json'); // Debug log
+      LoggerService.debug('Parsing UserModel from JSON', 'USER_MODEL');
 
-      // Parse role with debugging
       UserRole userRole = UserRole.guest;
       if (json['role'] != null) {
         final roleString = json['role'].toString().toLowerCase().trim();
-        print('🔍 Found role in JSON: "$roleString"'); // Debug log
-
         userRole = UserRole.values.firstWhere(
           (role) => role.name.toLowerCase() == roleString,
           orElse: () {
-            print('⚠️ Unknown role "$roleString", defaulting to guest');
+            LoggerService.warning(
+              'Unknown role "$roleString", defaulting to guest',
+              'USER_MODEL',
+            );
             return UserRole.guest;
           },
         );
-        print('✅ Parsed role: $userRole');
-      } else {
-        print('⚠️ No role found in JSON, using guest');
       }
 
-      // Parse timestamps safely
       DateTime? parseDateTime(dynamic value) {
         if (value == null) return null;
         if (value is String) {
           try {
             return DateTime.parse(value);
           } catch (e) {
-            if (!kReleaseMode) {
-              print('⚠️ Failed to parse datetime: $value');
-            }
+            LoggerService.warning(
+              'Failed to parse datetime: $value',
+              'USER_MODEL',
+            );
             return null;
           }
         }
         return null;
       }
 
-      // Parse metadata with validation
       Map<String, dynamic> metadata = {};
       if (json['metadata'] is Map) {
         metadata = Map<String, dynamic>.from(json['metadata']);
       }
 
-      // Add source information
       metadata['role_source'] = 'supabase';
       metadata['parsed_at'] = DateTime.now().toIso8601String();
 
-      // Parse linked providers
       List<String> linkedProviders = [];
       if (json['linked_providers'] is List) {
         linkedProviders = List<String>.from(json['linked_providers']);
@@ -124,7 +115,7 @@ class UserModel extends User {
             json['full_name']?.toString() ??
             json['display_name']?.toString() ??
             _generateDisplayName(json['email']?.toString()),
-        role: userRole, // Use parsed role from Supabase
+        role: userRole,
         photoURL:
             json['photo_url']?.toString() ?? json['avatar_url']?.toString(),
         emailVerified: json['email_verified'] == true,
@@ -138,15 +129,14 @@ class UserModel extends User {
         linkedProviders: linkedProviders,
       );
 
-      print('✅ Successfully parsed UserModel with role: ${userModel.role}');
+      LoggerService.info(
+        'Successfully parsed UserModel with role: ${userModel.role}',
+        'USER_MODEL',
+      );
       return userModel;
     } catch (e) {
-      if (!kReleaseMode) {
-        print('❌ Error parsing UserModel from JSON: $e');
-        print('JSON data: $json');
-      }
+      LoggerService.error('Error parsing UserModel from JSON', 'USER_MODEL', e);
 
-      // Return basic user model with minimal data
       return UserModel(
         id: json['id']?.toString() ?? '',
         email: json['email']?.toString(),
@@ -160,7 +150,6 @@ class UserModel extends User {
     }
   }
 
-  /// Convert to JSON with comprehensive data serialization
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -182,7 +171,6 @@ class UserModel extends User {
     };
   }
 
-  /// Convert to Supabase-compatible JSON
   Map<String, dynamic> toSupabaseJson() {
     return {
       'id': id,
@@ -203,7 +191,6 @@ class UserModel extends User {
     };
   }
 
-  /// Create a copy with modified values
   UserModel copyWith({
     String? id,
     String? email,
@@ -238,12 +225,10 @@ class UserModel extends User {
     );
   }
 
-  /// Update last login timestamp
   UserModel updateLastLogin() {
     return copyWith(lastLoginAt: DateTime.now(), updatedAt: DateTime.now());
   }
 
-  /// Update role with timestamp
   UserModel updateRole(UserRole newRole) {
     return copyWith(
       role: newRole,
@@ -256,7 +241,6 @@ class UserModel extends User {
     );
   }
 
-  /// Add metadata
   UserModel addMetadata(String key, dynamic value) {
     return copyWith(
       metadata: {...metadata, key: value},
@@ -264,32 +248,21 @@ class UserModel extends User {
     );
   }
 
-  /// Remove metadata
-  UserModel removeMetadata(String key) {
-    final newMetadata = Map<String, dynamic>.from(metadata);
-    newMetadata.remove(key);
-    return copyWith(metadata: newMetadata, updatedAt: DateTime.now());
-  }
-
-  /// Check if user has been active recently
   bool get isRecentlyActive {
     if (lastLoginAt == null) return false;
     return DateTime.now().difference(lastLoginAt!).inDays <= 30;
   }
 
-  /// Get user age (time since creation)
   Duration? get accountAge {
     if (createdAt == null) return null;
     return DateTime.now().difference(createdAt!);
   }
 
-  /// Get time since last login
   Duration? get timeSinceLastLogin {
     if (lastLoginAt == null) return null;
     return DateTime.now().difference(lastLoginAt!);
   }
 
-  /// Check if user profile is complete
   bool get isProfileComplete {
     return email != null &&
         email!.isNotEmpty &&
@@ -297,7 +270,6 @@ class UserModel extends User {
         displayName!.isNotEmpty;
   }
 
-  /// Get user initials for avatar
   @override
   String get initials {
     if (displayName == null || displayName!.isEmpty) {
@@ -311,7 +283,6 @@ class UserModel extends User {
     return displayName![0].toUpperCase();
   }
 
-  /// Get display name with fallback
   @override
   String get safeDisplayName {
     if (displayName != null && displayName!.isNotEmpty) {
@@ -323,97 +294,65 @@ class UserModel extends User {
     return 'User';
   }
 
-  /// Check if user has verified email
   bool get hasVerifiedEmail {
     return emailVerified && email != null && email!.isNotEmpty;
   }
 
-  /// Check if user has phone number
   bool get hasPhoneNumber {
     return phoneNumber != null && phoneNumber!.isNotEmpty;
   }
 
-  /// Check if user has profile photo
   bool get hasProfilePhoto {
     return photoURL != null && photoURL!.isNotEmpty;
   }
 
-  /// Get security score based on profile completeness
   int get securityScore {
     int score = 0;
 
-    // Basic account (20 points)
     if (email != null && email!.isNotEmpty) score += 20;
-
-    // Email verification (20 points)
     if (emailVerified) score += 20;
-
-    // Phone number (15 points)
     if (hasPhoneNumber) score += 15;
-
-    // Profile photo (10 points)
     if (hasProfilePhoto) score += 10;
-
-    // Complete profile (15 points)
     if (isProfileComplete) score += 15;
-
-    // Recent activity (10 points)
     if (isRecentlyActive) score += 10;
-
-    // Multiple providers (10 points)
     if (linkedProviders.length > 1) score += 10;
 
     return score.clamp(0, 100);
   }
 
-  /// Get user status summary
-  Map<String, dynamic> getStatusSummary() {
-    return {
-      'id': id,
-      'email': email,
-      'display_name': safeDisplayName,
-      'role': role.name,
-      'role_display': role.displayName,
-      'role_priority': role.priority,
-      'email_verified': emailVerified,
-      'is_active': isActive,
-      'is_recently_active': isRecentlyActive,
-      'profile_complete': isProfileComplete,
-      'security_score': securityScore,
-      'account_age_days': accountAge?.inDays,
-      'days_since_login': timeSinceLastLogin?.inDays,
-      'provider': provider,
-      'linked_providers_count': linkedProviders.length,
-      'has_phone': hasPhoneNumber,
-      'has_photo': hasProfilePhoto,
-    };
-  }
-
-  /// Validate user data integrity
   @override
   bool isValid() {
     try {
-      // Required fields
-      if (id.isEmpty) return false;
+      if (id.isEmpty) {
+        return false;
+      }
 
-      // Email validation (if provided)
       if (email != null && email!.isNotEmpty) {
-        if (!_isValidEmail(email!)) return false;
+        if (!_isValidEmail(email!)) {
+          return false;
+        }
       }
 
-      // Phone number validation (if provided)
       if (phoneNumber != null && phoneNumber!.isNotEmpty) {
-        if (!_isValidPhoneNumber(phoneNumber!)) return false;
+        if (!_isValidPhoneNumber(phoneNumber!)) {
+          return false;
+        }
       }
 
-      // URL validation (if provided)
       if (photoURL != null && photoURL!.isNotEmpty) {
-        if (!_isValidUrl(photoURL!)) return false;
+        if (!_isValidUrl(photoURL!)) {
+          return false;
+        }
       }
 
-      // Date validation
-      if (createdAt != null && createdAt!.isAfter(DateTime.now())) return false;
-      if (updatedAt != null && updatedAt!.isAfter(DateTime.now())) return false;
+      if (createdAt != null && createdAt!.isAfter(DateTime.now())) {
+        return false;
+      }
+
+      if (updatedAt != null && updatedAt!.isAfter(DateTime.now())) {
+        return false;
+      }
+
       if (lastLoginAt != null && lastLoginAt!.isAfter(DateTime.now())) {
         return false;
       }
@@ -424,7 +363,6 @@ class UserModel extends User {
     }
   }
 
-  /// Generate display name from email
   static String _generateDisplayName(String? email) {
     if (email == null || email.isEmpty) return 'User';
 
@@ -444,7 +382,6 @@ class UserModel extends User {
     }
   }
 
-  /// Extract primary provider from Firebase user
   static String _extractPrimaryProvider(firebase.User user) {
     if (user.providerData.isNotEmpty) {
       return user.providerData.first.providerId;
@@ -452,19 +389,16 @@ class UserModel extends User {
     return 'firebase';
   }
 
-  /// Email validation
   static bool _isValidEmail(String email) {
     return RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
     ).hasMatch(email);
   }
 
-  /// Phone number validation
   static bool _isValidPhoneNumber(String phoneNumber) {
     return RegExp(r'^\+?[\d\s\-\(\)]{10,}$').hasMatch(phoneNumber);
   }
 
-  /// URL validation
   static bool _isValidUrl(String url) {
     try {
       final uri = Uri.parse(url);
@@ -495,128 +429,6 @@ class UserModel extends User {
       return 'UserModel(id: $id, role: ${role.name})';
     }
 
-    return 'UserModel('
-        'id: $id, '
-        'email: $email, '
-        'displayName: $displayName, '
-        'role: ${role.name}, '
-        'emailVerified: $emailVerified, '
-        'isActive: $isActive, '
-        'provider: $provider, '
-        'securityScore: $securityScore'
-        ')';
-  }
-}
-
-/// User profile update request
-class UserProfileUpdateRequest {
-  final String? displayName;
-  final String? phoneNumber;
-  final String? photoURL;
-  final Map<String, dynamic>? metadata;
-
-  const UserProfileUpdateRequest({
-    this.displayName,
-    this.phoneNumber,
-    this.photoURL,
-    this.metadata,
-  });
-
-  Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{};
-
-    if (displayName != null) json['full_name'] = displayName;
-    if (phoneNumber != null) json['phone_number'] = phoneNumber;
-    if (photoURL != null) json['photo_url'] = photoURL;
-    if (metadata != null) json['metadata'] = metadata;
-
-    json['updated_at'] = DateTime.now().toIso8601String();
-
-    return json;
-  }
-
-  bool get isEmpty {
-    return displayName == null &&
-        phoneNumber == null &&
-        photoURL == null &&
-        (metadata == null || metadata!.isEmpty);
-  }
-}
-
-/// User role update request
-class UserRoleUpdateRequest {
-  final UserRole newRole;
-  final String? reason;
-  final String? updatedBy;
-
-  const UserRoleUpdateRequest({
-    required this.newRole,
-    this.reason,
-    this.updatedBy,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'role': newRole.name,
-      'role_updated_at': DateTime.now().toIso8601String(),
-      'role_update_reason': reason,
-      'role_updated_by': updatedBy,
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-  }
-}
-
-/// User search criteria
-class UserSearchCriteria {
-  final String? email;
-  final UserRole? role;
-  final bool? isActive;
-  final bool? emailVerified;
-  final DateTime? createdAfter;
-  final DateTime? createdBefore;
-  final DateTime? lastLoginAfter;
-  final DateTime? lastLoginBefore;
-  final String? provider;
-  final int? limit;
-  final int? offset;
-
-  const UserSearchCriteria({
-    this.email,
-    this.role,
-    this.isActive,
-    this.emailVerified,
-    this.createdAfter,
-    this.createdBefore,
-    this.lastLoginAfter,
-    this.lastLoginBefore,
-    this.provider,
-    this.limit,
-    this.offset,
-  });
-
-  Map<String, dynamic> toQueryParameters() {
-    final params = <String, dynamic>{};
-
-    if (email != null) params['email'] = email;
-    if (role != null) params['role'] = role!.name;
-    if (isActive != null) params['is_active'] = isActive;
-    if (emailVerified != null) params['email_verified'] = emailVerified;
-    if (createdAfter != null) {
-      params['created_after'] = createdAfter!.toIso8601String();
-    }
-    if (createdBefore != null) {
-      params['created_before'] = createdBefore!.toIso8601String();
-    }
-    if (lastLoginAfter != null) {
-      params['last_login_after'] = lastLoginAfter!.toIso8601String();
-    }
-    if (lastLoginBefore != null) {
-      params['last_login_before'] = lastLoginBefore!.toIso8601String();
-    }
-    if (provider != null) params['provider'] = provider;
-    if (limit != null) params['limit'] = limit;
-    if (offset != null) params['offset'] = offset;
-
-    return params;
+    return 'UserModel(id: $id, email: $email, displayName: $displayName, role: ${role.name}, emailVerified: $emailVerified, isActive: $isActive, provider: $provider, securityScore: $securityScore)';
   }
 }

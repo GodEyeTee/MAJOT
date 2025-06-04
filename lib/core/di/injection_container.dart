@@ -26,18 +26,12 @@ import '../../services/rbac/rbac_service.dart';
 final sl = GetIt.instance;
 
 Future<void> init() async {
-  print('🔧 Registering dependencies...');
-
   await _registerExternalDependencies();
   await _registerCoreServices();
   await _registerAuthFeature();
-
-  print('✅ All dependencies registered');
 }
 
 Future<void> _registerExternalDependencies() async {
-  print('🔧 Registering external dependencies...');
-
   // Firebase
   sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   sl.registerLazySingleton<GoogleSignIn>(
@@ -56,25 +50,17 @@ Future<void> _registerExternalDependencies() async {
   sl.registerLazySingleton<InternetConnectionChecker>(
     () => InternetConnectionChecker.createInstance(),
   );
-
-  print('✅ External dependencies registered');
 }
 
 Future<void> _registerCoreServices() async {
-  print('🔧 Registering core services...');
-
   sl.registerLazySingleton<NetworkInfo>(
     () => NetworkInfoImpl(sl<InternetConnectionChecker>()),
   );
   sl.registerLazySingleton<RoleManager>(() => RoleManager());
   sl.registerLazySingleton<RBACService>(() => RBACService());
-
-  print('✅ Core services registered');
 }
 
 Future<void> _registerAuthFeature() async {
-  print('🔧 Registering auth feature...');
-
   // Data sources
   sl.registerLazySingleton<FirebaseAuthDataSource>(
     () => FirebaseAuthDataSourceImpl(
@@ -120,6 +106,4 @@ Future<void> _registerAuthFeature() async {
       authRepository: sl<AuthRepository>(),
     ),
   );
-
-  print('✅ Auth feature registered');
 }

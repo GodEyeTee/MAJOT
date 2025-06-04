@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
+
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/services/supabase_service_client.dart';
+import '../../../../core/services/logger_service.dart';
 import '../models/user_model.dart';
 
 abstract class SupabaseUserDataSource {
@@ -8,7 +11,6 @@ abstract class SupabaseUserDataSource {
   Future<UserModel?> getUser(String id);
   Future<void> updateUserRole(String id, String role);
   Future<bool> validateConnection();
-  Future<Map<String, dynamic>> getHealthMetrics();
 }
 
 class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
@@ -21,7 +23,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   SupabaseUserDataSourceImpl({SupabaseServiceClient? serviceClient})
     : _serviceClient = serviceClient ?? SupabaseServiceClient();
 
-  /// Get service client instance
   SupabaseClient get _client {
     if (!_serviceClient.isInitialized) {
       throw DatabaseException('Supabase Service Client not initialized');
@@ -33,27 +34,21 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   Future<void> saveUser(UserModel user) async {
     await _executeWithRetry(() async {
       _validateUserModel(user);
-
       final userData = _sanitizeUserData(user.toJson());
 
       try {
-        print('📝 Saving user with service client: ${user.email}');
-        print('   User ID: ${user.id}');
-        print('   Role: ${user.role}');
+        LoggerService.info('Saving user: ${user.email}', 'SUPABASE');
 
-        // ใช้ service client ที่ bypass RLS
         await _client
             .from('users')
             .upsert(userData, onConflict: 'id')
             .timeout(_operationTimeout);
 
-        if (!_isProduction) {
-          print('✅ User saved successfully: ${user.email}');
-        }
+        LoggerService.info(
+          'User saved successfully: ${user.email}',
+          'SUPABASE',
+        );
       } on PostgrestException catch (e) {
-        print('❌ Postgrest error saving user: ${e.code} - ${e.message}');
-
-        // Handle specific errors
         if (e.code == '23505') {
           // Duplicate key - try update
           try {
@@ -61,26 +56,25 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
                 .from('users')
                 .update({
                   'full_name': userData['full_name'],
-                  'role': userData['role'], // อัพเดต role ด้วย
+                  'role': userData['role'],
                   'updated_at': DateTime.now().toIso8601String(),
                 })
                 .eq('id', user.id)
                 .timeout(_operationTimeout);
 
-            if (!_isProduction) {
-              print('✅ User updated successfully: ${user.email}');
-            }
+            LoggerService.info(
+              'User updated successfully: ${user.email}',
+              'SUPABASE',
+            );
             return;
           } catch (updateError) {
-            print('❌ Update also failed: $updateError');
             throw DatabaseException(
               'Failed to save or update user: $updateError',
             );
           }
         }
         throw DatabaseException(_handlePostgrestError(e));
-      } on Exception catch (e) {
-        print('❌ Unknown error saving user: $e');
+      } catch (e) {
         throw DatabaseException('Database operation failed: ${e.toString()}');
       }
     });
@@ -94,9 +88,8 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
       }
 
       try {
-        print('🔍 Getting user with service client: $id');
+        LoggerService.info('Getting user: $id', 'SUPABASE');
 
-        // ใช้ service client ที่ bypass RLS
         final response = await _client
             .from('users')
             .select()
@@ -105,26 +98,22 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
             .timeout(_operationTimeout);
 
         if (response == null) {
-          print('❌ No user found with ID: $id');
+          LoggerService.warning('No user found with ID: $id', 'SUPABASE');
           return null;
         }
-
-        print('✅ Found user in Supabase:');
-        print('   Email: ${response['email']}');
-        print('   Role: ${response['role']}');
-        print('   Full Name: ${response['full_name']}');
 
         _validateUserData(response);
         final userModel = UserModel.fromJson(response);
 
-        print('✅ User model created with role: ${userModel.role}');
+        LoggerService.info(
+          'User retrieved successfully: ${userModel.email}',
+          'SUPABASE',
+        );
         return userModel;
       } on PostgrestException catch (e) {
-        print('❌ Postgrest error getting user: ${e.code} - ${e.message}');
         if (e.code == 'PGRST116') return null;
         throw DatabaseException(_handlePostgrestError(e));
-      } on Exception catch (e) {
-        print('❌ Unknown error getting user: $e');
+      } catch (e) {
         throw DatabaseException('Failed to get user: ${e.toString()}');
       }
     });
@@ -142,11 +131,8 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
       }
 
       try {
-        print('🔄 Updating user role with service client:');
-        print('   User ID: $id');
-        print('   New Role: $role');
+        LoggerService.info('Updating user role: $id -> $role', 'SUPABASE');
 
-        // ใช้ service client ที่ bypass RLS
         final response = await _client
             .from('users')
             .update({
@@ -162,14 +148,10 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
           throw const DatabaseException('Role update verification failed');
         }
 
-        if (!_isProduction) {
-          print('✅ User role updated: $id -> $role');
-        }
+        LoggerService.info('User role updated: $id -> $role', 'SUPABASE');
       } on PostgrestException catch (e) {
-        print('❌ Postgrest error updating role: ${e.code} - ${e.message}');
         throw DatabaseException(_handlePostgrestError(e));
-      } on Exception catch (e) {
-        print('❌ Unknown error updating role: $e');
+      } catch (e) {
         throw DatabaseException('Role update failed: ${e.toString()}');
       }
     });
@@ -179,62 +161,16 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   Future<bool> validateConnection() async {
     try {
       if (!_serviceClient.isInitialized) {
-        if (!_isProduction) {
-          print('❌ Service client not initialized');
-        }
         return false;
       }
-
-      // Test service client connection
-      final isValid = await _serviceClient.testConnection();
-
-      if (!_isProduction) {
-        print(
-          isValid
-              ? '✅ Supabase service connection validated'
-              : '❌ Supabase service connection failed',
-        );
-      }
-
-      return isValid;
+      return await _serviceClient.testConnection();
     } catch (e) {
-      if (!_isProduction) {
-        print('⚠️ Supabase service connection validation failed: $e');
-      }
+      LoggerService.warning(
+        'Supabase connection validation failed: $e',
+        'SUPABASE',
+      );
       return false;
     }
-  }
-
-  @override
-  Future<Map<String, dynamic>> getHealthMetrics() async {
-    if (_isProduction) {
-      return {
-        'status': 'production_mode',
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-    }
-
-    final stopwatch = Stopwatch()..start();
-    final isConnected = await validateConnection();
-    stopwatch.stop();
-
-    return {
-      'connection_status': isConnected ? 'healthy' : 'unhealthy',
-      'response_time_ms': stopwatch.elapsedMilliseconds,
-      'last_check': DateTime.now().toIso8601String(),
-      'client_type': 'service_role_client',
-      'bypass_rls': true,
-      'service_client_health': _serviceClient.getHealthStatus(),
-      'retry_config': {
-        'max_retries': _maxRetries,
-        'retry_delay_ms': _retryDelay.inMilliseconds,
-        'operation_timeout_ms': _operationTimeout.inMilliseconds,
-      },
-      'performance_metrics': {
-        'avg_query_time': '${stopwatch.elapsedMilliseconds}ms',
-        'connection_pool': 'service_role',
-      },
-    };
   }
 
   void _validateUserModel(UserModel user) {
@@ -310,16 +246,10 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
 
         if (e is DatabaseException &&
             e.message.contains('User already exists')) {
-          if (!_isProduction) {
-            print('ℹ️ User already exists, not retrying');
-          }
           return await operation();
         }
 
         if (attempts >= _maxRetries) {
-          if (!_isProduction) {
-            print('❌ Operation failed after $_maxRetries attempts: $e');
-          }
           rethrow;
         }
 
@@ -328,11 +258,10 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
         );
         final delayWithJitter = currentDelay + jitter;
 
-        if (!_isProduction) {
-          print(
-            '🔄 Retry attempt $attempts after ${delayWithJitter.inMilliseconds}ms',
-          );
-        }
+        LoggerService.info(
+          'Retry attempt $attempts after ${delayWithJitter.inMilliseconds}ms',
+          'SUPABASE',
+        );
 
         await Future.delayed(delayWithJitter);
         currentDelay *= 2;
@@ -345,11 +274,6 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
   }
 
   String _handlePostgrestError(PostgrestException e) {
-    if (!_isProduction) {
-      print('🔴 Postgrest Error: ${e.code} - ${e.message}');
-      print('🔴 Error details: ${e.details}');
-    }
-
     switch (e.code) {
       case '23505':
         return 'User already exists';
@@ -390,54 +314,7 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
     return validRoles.contains(normalizedRole) && normalizedRole.isNotEmpty;
   }
 
-  bool get _isProduction => const bool.fromEnvironment('dart.vm.product');
-
-  Future<Map<String, dynamic>> getConnectionPoolStatus() async {
-    if (_isProduction) {
-      return {'status': 'production_mode'};
-    }
-
-    try {
-      final connectionStart = DateTime.now();
-      final isConnected = await validateConnection();
-      final connectionEnd = DateTime.now();
-      final latency = connectionEnd.difference(connectionStart);
-
-      return {
-        'pool_status': isConnected ? 'healthy' : 'degraded',
-        'latency_ms': latency.inMilliseconds,
-        'connection_quality': _getConnectionQuality(latency.inMilliseconds),
-        'timestamp': connectionEnd.toIso8601String(),
-        'client_info': {
-          'ready': _serviceClient.isInitialized,
-          'authenticated': true,
-          'type': 'service_role',
-        },
-      };
-    } catch (e) {
-      return {
-        'pool_status': 'unhealthy',
-        'error': e.toString(),
-        'timestamp': DateTime.now().toIso8601String(),
-        'client_info': {
-          'ready': false,
-          'authenticated': false,
-          'type': 'service_role',
-        },
-      };
-    }
-  }
-
-  String _getConnectionQuality(int latencyMs) {
-    if (latencyMs < 100) return 'excellent';
-    if (latencyMs < 300) return 'good';
-    if (latencyMs < 1000) return 'fair';
-    return 'poor';
-  }
-
-  Future<void> dispose() async {
-    if (!_isProduction) {
-      print('🧹 SupabaseUserDataSource disposed');
-    }
+  void dispose() {
+    LoggerService.info('SupabaseUserDataSource disposed', 'SUPABASE');
   }
 }

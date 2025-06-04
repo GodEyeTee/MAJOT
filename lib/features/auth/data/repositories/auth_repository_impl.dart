@@ -1,13 +1,15 @@
 import 'package:dartz/dartz.dart';
+import 'dart:async';
+
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/services/logger_service.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/firebase_auth_data_source.dart';
 import '../datasources/supabase_user_data_source.dart';
 import '../models/user_model.dart';
 import '../../../../services/rbac/role_manager.dart';
-import 'dart:async';
 
 class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuthDataSource firebaseAuthDataSource;
@@ -15,9 +17,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
   UserModel? _cachedUser;
   DateTime? _cacheTimestamp;
-  static const Duration _cacheValidityDuration = Duration(minutes: 5);
-
   StreamController<Either<Failure, User?>>? _authStateController;
+
+  static const Duration _cacheValidityDuration = Duration(minutes: 5);
 
   AuthRepositoryImpl({
     required this.firebaseAuthDataSource,
@@ -34,12 +36,12 @@ class AuthRepositoryImpl implements AuthRepository {
         try {
           await _handleAuthStateChange(firebaseUser);
         } catch (e) {
-          print('❌ Auth state change error: $e');
+          LoggerService.error('Auth state change error', 'AUTH_REPO', e);
           _authStateController?.add(Left(UnknownFailure(e.toString())));
         }
       },
       onError: (error) {
-        print('❌ Auth stream error: $error');
+        LoggerService.error('Auth stream error', 'AUTH_REPO', error);
         _authStateController?.add(
           Left(AuthFailure('Authentication stream error')),
         );
@@ -49,21 +51,21 @@ class AuthRepositoryImpl implements AuthRepository {
 
   Future<void> _handleAuthStateChange(UserModel? firebaseUser) async {
     try {
-      print('🔄 Handling auth state change...');
-
       if (firebaseUser == null) {
-        print('❌ No Firebase user - clearing cache and signaling signed out');
         _clearCache();
         _authStateController?.add(const Right(null));
         return;
       }
 
-      print('✅ Firebase user found: ${firebaseUser.email}');
+      LoggerService.info(
+        'Firebase user authenticated: ${firebaseUser.email}',
+        'AUTH_REPO',
+      );
       final enrichedUser = await _enrichUserWithSupabaseData(firebaseUser);
       _updateCache(enrichedUser);
       _authStateController?.add(Right(enrichedUser));
     } catch (e) {
-      print('❌ Error handling auth state change: $e');
+      LoggerService.error('Error handling auth state change', 'AUTH_REPO', e);
       _authStateController?.add(
         Left(AuthFailure('Failed to process authentication state')),
       );
@@ -72,9 +74,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
   Future<UserModel> _enrichUserWithSupabaseData(UserModel firebaseUser) async {
     try {
-      print('🔄 Enriching Firebase user with Supabase data...');
-      print(
-        '   Firebase user: ${firebaseUser.email} (role: ${firebaseUser.role})',
+      LoggerService.info(
+        'Enriching Firebase user with Supabase data',
+        'AUTH_REPO',
       );
 
       final supabaseUser = await supabaseUserDataSource.getUser(
@@ -82,24 +84,22 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       if (supabaseUser != null) {
-        print('✅ Found existing Supabase user');
-        print('   Supabase role: ${supabaseUser.role}');
+        LoggerService.info('Found existing Supabase user', 'AUTH_REPO');
         return _mergeUserData(firebaseUser, supabaseUser);
       } else {
-        print('⚠️ No existing Supabase user found - creating new one');
+        LoggerService.info('Creating new Supabase user', 'AUTH_REPO');
         final userToSave = firebaseUser.copyWith(
-          role: UserRole.user, // Default role for new users
+          role: UserRole.user,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           lastLoginAt: DateTime.now(),
         );
 
-        print('📝 Saving new user to Supabase with role: ${userToSave.role}');
         await supabaseUserDataSource.saveUser(userToSave);
         return userToSave;
       }
     } catch (e) {
-      print('❌ Error enriching user data: $e');
+      LoggerService.error('Error enriching user data', 'AUTH_REPO', e);
       return firebaseUser.copyWith(
         lastLoginAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -108,14 +108,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   UserModel _mergeUserData(UserModel firebaseUser, UserModel supabaseUser) {
-    print('🔄 Merging user data:');
-    print('   Firebase email: ${firebaseUser.email}');
-    print('   Firebase role: ${firebaseUser.role}');
-    print('   Supabase email: ${supabaseUser.email}');
-    print('   Supabase role: ${supabaseUser.role}');
-    print('   Supabase role source: ${supabaseUser.metadata['role_source']}');
-
-    final mergedUser = supabaseUser.copyWith(
+    return supabaseUser.copyWith(
       email: firebaseUser.email ?? supabaseUser.email,
       emailVerified: firebaseUser.emailVerified,
       photoURL: firebaseUser.photoURL ?? supabaseUser.photoURL,
@@ -123,23 +116,14 @@ class AuthRepositoryImpl implements AuthRepository {
       linkedProviders: firebaseUser.linkedProviders,
       lastLoginAt: DateTime.now(),
       updatedAt: DateTime.now(),
-      // Use role from Supabase as primary source
       role: supabaseUser.role,
       metadata: {
         ...supabaseUser.metadata,
         ...firebaseUser.metadata,
         'last_firebase_sync': DateTime.now().toIso8601String(),
         'role_source': 'supabase_merged',
-        'merge_timestamp': DateTime.now().toIso8601String(),
       },
     );
-
-    print('✅ Merged user data:');
-    print('   Final email: ${mergedUser.email}');
-    print('   Final role: ${mergedUser.role}');
-    print('   Role source: ${mergedUser.metadata['role_source']}');
-
-    return mergedUser;
   }
 
   @override
@@ -151,20 +135,20 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> signInWithGoogle() async {
     try {
-      print('🔄 Starting Google sign-in process...');
+      LoggerService.info('Starting Google sign-in process', 'AUTH_REPO');
       final firebaseUser = await firebaseAuthDataSource.signInWithGoogle();
       final enrichedUser = await _enrichUserWithSupabaseData(firebaseUser);
       _updateCache(enrichedUser);
-      print('✅ Google sign-in completed with role: ${enrichedUser.role}');
+      LoggerService.info('Google sign-in completed successfully', 'AUTH_REPO');
       return Right(enrichedUser);
     } on AuthException catch (e) {
-      print('❌ Auth exception during sign-in: ${e.message}');
+      LoggerService.error('Auth exception during sign-in', 'AUTH_REPO', e);
       return Left(AuthFailure(e.message));
     } on DatabaseException catch (e) {
-      print('❌ Database exception during sign-in: ${e.message}');
+      LoggerService.error('Database exception during sign-in', 'AUTH_REPO', e);
       return Left(DatabaseFailure(e.message));
     } catch (e) {
-      print('❌ Unknown error during sign-in: $e');
+      LoggerService.error('Unknown error during sign-in', 'AUTH_REPO', e);
       return Left(UnknownFailure(e.toString()));
     }
   }
@@ -172,16 +156,16 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> signOut() async {
     try {
-      print('🔄 Starting sign-out process...');
+      LoggerService.info('Starting sign-out process', 'AUTH_REPO');
       await firebaseAuthDataSource.signOut();
       _clearCache();
-      print('✅ Sign-out completed');
+      LoggerService.info('Sign-out completed', 'AUTH_REPO');
       return const Right(null);
     } on AuthException catch (e) {
-      print('❌ Auth exception during sign-out: ${e.message}');
+      LoggerService.error('Auth exception during sign-out', 'AUTH_REPO', e);
       return Left(AuthFailure(e.message));
     } catch (e) {
-      print('❌ Unknown error during sign-out: $e');
+      LoggerService.error('Unknown error during sign-out', 'AUTH_REPO', e);
       return Left(UnknownFailure(e.toString()));
     }
   }
@@ -189,117 +173,89 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User?>> getCurrentUser() async {
     try {
-      print('🔄 Getting current user...');
-
-      // Check cache first
       if (_isCacheValid() && _cachedUser != null) {
-        print(
-          '✅ Using cached user: ${_cachedUser!.email} (role: ${_cachedUser!.role})',
-        );
         return Right(_cachedUser);
       }
 
-      print('📋 Cache invalid or empty - fetching fresh data');
+      LoggerService.info('Fetching current user', 'AUTH_REPO');
       final firebaseUser = await firebaseAuthDataSource.getCurrentUser();
       if (firebaseUser == null) {
-        print('❌ No Firebase user found');
         _clearCache();
         return const Right(null);
       }
 
       final enrichedUser = await _enrichUserWithSupabaseData(firebaseUser);
       _updateCache(enrichedUser);
-      print(
-        '✅ Got current user: ${enrichedUser.email} (role: ${enrichedUser.role})',
-      );
       return Right(enrichedUser);
     } on AuthException catch (e) {
-      print('❌ Auth exception: ${e.message}');
+      LoggerService.error(
+        'Auth exception getting current user',
+        'AUTH_REPO',
+        e,
+      );
       return Left(AuthFailure(e.message));
     } on DatabaseException catch (e) {
-      print('❌ Database exception: ${e.message}');
+      LoggerService.error(
+        'Database exception getting current user',
+        'AUTH_REPO',
+        e,
+      );
       return Left(DatabaseFailure(e.message));
     } catch (e) {
-      print('❌ Unknown error: $e');
+      LoggerService.error('Unknown error getting current user', 'AUTH_REPO', e);
       return Left(UnknownFailure(e.toString()));
     }
   }
 
   Future<Either<Failure, User?>> forceGetCurrentUser() async {
     try {
-      print('🔄 FORCE REFRESH: Starting complete user data refresh...');
+      LoggerService.info('Force refreshing user data', 'AUTH_REPO');
 
-      // Clear ALL caches
-      print('🧹 Clearing all caches...');
       _clearCache();
-
-      // Clear Firebase cache if available
       if (firebaseAuthDataSource is FirebaseAuthDataSourceImpl) {
         (firebaseAuthDataSource as FirebaseAuthDataSourceImpl)
             .forceClearCache();
-        print('✅ Firebase cache cleared');
       }
 
-      // Force get fresh Firebase user
-      print('🔥 Getting fresh Firebase user...');
       final firebaseUser = await firebaseAuthDataSource.getCurrentUser();
       if (firebaseUser == null) {
-        print('❌ No Firebase user found after force refresh');
         return const Right(null);
       }
 
-      print(
-        '✅ Got fresh Firebase user: ${firebaseUser.email} (role: ${firebaseUser.role})',
-      );
-
-      // Force get fresh Supabase data
-      print('🔥 Getting fresh Supabase user data for ID: ${firebaseUser.id}');
       final supabaseUser = await supabaseUserDataSource.getUser(
         firebaseUser.id,
       );
 
       UserModel enrichedUser;
       if (supabaseUser != null) {
-        print('✅ Got fresh Supabase user data:');
-        print('   ID: ${supabaseUser.id}');
-        print('   Email: ${supabaseUser.email}');
-        print('   Role: ${supabaseUser.role}');
-        print('   Role source: ${supabaseUser.metadata['role_source']}');
-
         enrichedUser = _mergeUserData(firebaseUser, supabaseUser);
       } else {
-        print('⚠️ No Supabase user found - creating new one');
         final userToSave = firebaseUser.copyWith(
-          role: UserRole.user, // Default role for new users
+          role: UserRole.user,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
           lastLoginAt: DateTime.now(),
         );
 
-        print('📝 Saving new user with role: ${userToSave.role}');
         await supabaseUserDataSource.saveUser(userToSave);
         enrichedUser = userToSave;
       }
 
-      // Update cache with fresh data
       _updateCache(enrichedUser);
-
-      print('🎉 FORCE REFRESH COMPLETED:');
-      print('   User: ${enrichedUser.email}');
-      print('   Role: ${enrichedUser.role}');
-      print(
-        '   Permissions: ${RoleManager().getPermissionsForRole(enrichedUser.role).map((p) => p.id).join(', ')}',
-      );
-
+      LoggerService.info('Force refresh completed successfully', 'AUTH_REPO');
       return Right(enrichedUser);
     } on AuthException catch (e) {
-      print('❌ Auth error during force refresh: ${e.message}');
+      LoggerService.error('Auth error during force refresh', 'AUTH_REPO', e);
       return Left(AuthFailure(e.message));
     } on DatabaseException catch (e) {
-      print('❌ Database error during force refresh: ${e.message}');
+      LoggerService.error(
+        'Database error during force refresh',
+        'AUTH_REPO',
+        e,
+      );
       return Left(DatabaseFailure(e.message));
     } catch (e) {
-      print('❌ Unknown error during force refresh: $e');
+      LoggerService.error('Unknown error during force refresh', 'AUTH_REPO', e);
       return Left(UnknownFailure(e.toString()));
     }
   }
@@ -319,37 +275,24 @@ class AuthRepositoryImpl implements AuthRepository {
 
   bool _isCacheValid() {
     if (_cachedUser == null || _cacheTimestamp == null) {
-      print(
-        '📋 Cache invalid: ${_cachedUser == null ? 'no user' : 'no timestamp'}',
-      );
       return false;
     }
-
-    final age = DateTime.now().difference(_cacheTimestamp!);
-    final isValid = age < _cacheValidityDuration;
-
-    print('📋 Cache age: ${age.inMinutes}min, valid: $isValid');
-    return isValid;
+    return DateTime.now().difference(_cacheTimestamp!) < _cacheValidityDuration;
   }
 
   void _updateCache(UserModel user) {
     _cachedUser = user;
     _cacheTimestamp = DateTime.now();
-    print('✅ Cache updated: ${user.email} (role: ${user.role})');
   }
 
   void _clearCache() {
-    final hadUser = _cachedUser != null;
     _cachedUser = null;
     _cacheTimestamp = null;
-    if (hadUser) {
-      print('🧹 Cache cleared');
-    }
   }
 
   void dispose() {
     _authStateController?.close();
     _clearCache();
-    print('🧹 AuthRepositoryImpl disposed');
+    LoggerService.info('AuthRepositoryImpl disposed', 'AUTH_REPO');
   }
 }

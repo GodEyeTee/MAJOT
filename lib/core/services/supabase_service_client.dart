@@ -1,8 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
-import '../utils/app_config_loader.dart';
 
-/// Service client สำหรับ operations ที่ต้อง bypass RLS
+import '../utils/app_config_loader.dart';
+import 'logger_service.dart';
+
 class SupabaseServiceClient {
   static final SupabaseServiceClient _instance =
       SupabaseServiceClient._internal();
@@ -12,7 +12,6 @@ class SupabaseServiceClient {
   SupabaseClient? _serviceClient;
   bool _isInitialized = false;
 
-  /// Initialize service client with service role key
   Future<void> initialize(AppConfig config) async {
     if (_isInitialized) return;
 
@@ -21,28 +20,27 @@ class SupabaseServiceClient {
         throw Exception('Service role key not configured');
       }
 
-      // สร้าง client ใหม่ด้วย service role key (แบบง่าย)
       _serviceClient = SupabaseClient(
         config.supabaseUrl,
-        config.serviceRoleKey!, // ใช้ service key แทน anon key
+        config.serviceRoleKey!,
       );
 
       _isInitialized = true;
 
-      if (!kReleaseMode) {
-        print('✅ Supabase Service Client initialized');
-        print('   URL: ${_maskUrl(config.supabaseUrl)}');
-        print('   Service Key: ${_maskKey(config.serviceRoleKey!)}');
-      }
+      LoggerService.info(
+        'Supabase Service Client initialized successfully',
+        'SUPABASE_SERVICE',
+      );
     } catch (e) {
-      if (!kReleaseMode) {
-        print('❌ Failed to initialize Supabase Service Client: $e');
-      }
+      LoggerService.error(
+        'Failed to initialize Supabase Service Client',
+        'SUPABASE_SERVICE',
+        e,
+      );
       rethrow;
     }
   }
 
-  /// Get service client instance
   SupabaseClient get client {
     if (!_isInitialized || _serviceClient == null) {
       throw Exception(
@@ -52,30 +50,28 @@ class SupabaseServiceClient {
     return _serviceClient!;
   }
 
-  /// Check if service client is initialized
   bool get isInitialized => _isInitialized;
 
-  /// Test service client connection
   Future<bool> testConnection() async {
     try {
       if (!_isInitialized) return false;
 
-      // Test ด้วยการ query table users (ไม่เก็บ response)
       await _serviceClient!.from('users').select('id').limit(1);
 
-      if (!kReleaseMode) {
-        print('✅ Service client connection test successful');
-      }
+      LoggerService.info(
+        'Service client connection test successful',
+        'SUPABASE_SERVICE',
+      );
       return true;
     } catch (e) {
-      if (!kReleaseMode) {
-        print('❌ Service client connection test failed: $e');
-      }
+      LoggerService.warning(
+        'Service client connection test failed',
+        'SUPABASE_SERVICE',
+      );
       return false;
     }
   }
 
-  /// Get service client health status
   Map<String, dynamic> getHealthStatus() {
     return {
       'initialized': _isInitialized,
@@ -86,36 +82,10 @@ class SupabaseServiceClient {
     };
   }
 
-  /// Mask URL for logging
-  String _maskUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final host = uri.host;
-      if (host.length > 10) {
-        return '${uri.scheme}://${host.substring(0, 5)}***${host.substring(host.length - 3)}';
-      }
-      return '${uri.scheme}://$host';
-    } catch (e) {
-      return '[INVALID_URL]';
-    }
-  }
-
-  /// Mask key for logging
-  String _maskKey(String key) {
-    if (key.length > 8) {
-      return '${key.substring(0, 8)}***${key.substring(key.length - 8)}';
-    }
-    return '[SHORT_KEY]';
-  }
-
-  /// Dispose service client
   void dispose() {
     _serviceClient?.dispose();
     _serviceClient = null;
     _isInitialized = false;
-
-    if (!kReleaseMode) {
-      print('🧹 Supabase Service Client disposed');
-    }
+    LoggerService.info('Supabase Service Client disposed', 'SUPABASE_SERVICE');
   }
 }

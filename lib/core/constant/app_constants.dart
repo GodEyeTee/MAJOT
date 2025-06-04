@@ -19,6 +19,16 @@ class AppConstants {
   static const String analyticsRoute = '/analytics';
   static const String settingsRoute = '/settings';
 
+  // Cache durations
+  static const Duration userCacheValidity = Duration(minutes: 5);
+  static const Duration networkCacheValidity = Duration(seconds: 5);
+  static const Duration tokenRefreshThreshold = Duration(minutes: 55);
+
+  // Retry configurations
+  static const int maxRetryAttempts = 3;
+  static const Duration retryDelay = Duration(seconds: 2);
+  static const Duration operationTimeout = Duration(seconds: 10);
+
   // Prevent instantiation
   const AppConstants._();
 }

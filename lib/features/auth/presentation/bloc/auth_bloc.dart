@@ -1,5 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:async';
+
 import '../../../../core/usecases/usecase.dart';
+import '../../../../core/services/logger_service.dart';
 import '../../../../services/rbac/rbac_service.dart';
 import '../../domain/usecases/is_authenticated.dart';
 import '../../domain/usecases/sign_in_with_google.dart';
@@ -10,7 +13,6 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
-import 'dart:async';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInWithGoogle signInWithGoogleUseCase;
@@ -47,8 +49,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       userResult,
     ) {
       userResult.fold(
-        (failure) => add(AuthStateChangedEvent(failure: failure)),
-        (user) => add(AuthStateChangedEvent(user: user)),
+        (failure) {
+          LoggerService.error(
+            'Auth state change failure: ${failure.message}',
+            'AUTH_BLOC',
+          );
+          add(AuthStateChangedEvent(failure: failure));
+        },
+        (user) {
+          LoggerService.info(
+            'Auth state changed: ${user?.email ?? 'signed out'}',
+            'AUTH_BLOC',
+          );
+          add(AuthStateChangedEvent(user: user));
+        },
       );
     });
   }
@@ -84,18 +98,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     final result = await getCurrentUserUseCase(const NoParams());
-    result.fold((failure) => emit(AuthError(message: failure.message)), (user) {
-      _isInitialized = true;
-      if (user != null) {
-        _cachedUser = user;
-        _rbacService.setCurrentUser(user);
-        emit(Authenticated(user: user));
-      } else {
-        _cachedUser = null;
-        _rbacService.setCurrentUser(null);
-        emit(Unauthenticated());
-      }
-    });
+    result.fold(
+      (failure) {
+        LoggerService.error(
+          'Check auth status failed: ${failure.message}',
+          'AUTH_BLOC',
+        );
+        emit(AuthError(message: failure.message));
+      },
+      (user) {
+        _isInitialized = true;
+        if (user != null) {
+          _cachedUser = user;
+          _rbacService.setCurrentUser(user);
+          emit(Authenticated(user: user));
+        } else {
+          _cachedUser = null;
+          _rbacService.setCurrentUser(null);
+          emit(Unauthenticated());
+        }
+      },
+    );
   }
 
   Future<void> _onRefreshUserData(
@@ -104,10 +127,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
 
-    // ใช้ forceGetCurrentUser แทน
+    LoggerService.info('Refreshing user data', 'AUTH_BLOC');
+
     if (authRepository is AuthRepositoryImpl) {
       final result =
           await (authRepository as AuthRepositoryImpl).forceGetCurrentUser();
+      result.fold(
+        (failure) {
+          LoggerService.error(
+            'Refresh user data failed: ${failure.message}',
+            'AUTH_BLOC',
+          );
+          emit(AuthError(message: failure.message));
+        },
+        (user) {
+          if (user != null) {
+            _cachedUser = user;
+            _rbacService.setCurrentUser(user);
+            emit(Authenticated(user: user));
+            LoggerService.info('User data refreshed successfully', 'AUTH_BLOC');
+          } else {
+            emit(Unauthenticated());
+          }
+        },
+      );
+    } else {
+      // Fallback to regular getCurrentUser
+      final result = await getCurrentUserUseCase(const NoParams());
       result.fold((failure) => emit(AuthError(message: failure.message)), (
         user,
       ) {
@@ -127,19 +173,41 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+    LoggerService.info('Starting Google sign-in', 'AUTH_BLOC');
+
     final result = await signInWithGoogleUseCase(const NoParams());
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (user) {}, // Success handled by auth stream
+      (failure) {
+        LoggerService.error(
+          'Google sign-in failed: ${failure.message}',
+          'AUTH_BLOC',
+        );
+        emit(AuthError(message: failure.message));
+      },
+      (user) {
+        LoggerService.info(
+          'Google sign-in successful: ${user.email}',
+          'AUTH_BLOC',
+        );
+        // Success handled by auth stream
+      },
     );
   }
 
   Future<void> _onSignOut(SignOutEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
+    LoggerService.info('Starting sign-out', 'AUTH_BLOC');
+
     final result = await signOutUseCase(const NoParams());
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) {}, // Success handled by auth stream
+      (failure) {
+        LoggerService.error('Sign-out failed: ${failure.message}', 'AUTH_BLOC');
+        emit(AuthError(message: failure.message));
+      },
+      (_) {
+        LoggerService.info('Sign-out successful', 'AUTH_BLOC');
+        // Success handled by auth stream
+      },
     );
   }
 
