@@ -1,425 +1,595 @@
-# Mytest app
+# คู่มือการพัฒนาต่อ Flutter App with Clean Architecture
 
-multifuntion aplication
+## 📁 โครงสร้างโปรเจค
 
-## data base sql editor 
 ```
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE,
-  full_name TEXT,
-  role TEXT DEFAULT 'guest',
-  photo_url TEXT,
-  email_verified BOOLEAN DEFAULT false,
-  phone_number TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  last_login_at TIMESTAMPTZ,
-  is_active BOOLEAN DEFAULT true,
-  provider TEXT,
-  linked_providers TEXT[],
-  metadata JSONB DEFAULT '{}'
-);
-```
-
-## Getting Started
-
-RBAC have 3 role :admin,editor,user
-have main 3 future :hotel system,store shopping system, ocr scaner reader
-
-## Project stucjture
-```lib/
-├── core/                           # Core utilities and infrastructure
-│   ├── api/                        # API services & configurations
-│   │   ├── dio_client.dart         # Dio HTTP client configuration
-│   │   ├── api_interceptors.dart   # Request/response interceptors
-│   │   ├── error_handlers.dart     # API error handling utilities
-│   │   └── endpoints.dart          # API endpoint constants
-│   ├── bloc/                       # Base bloc implementations
-│   │   ├── app_bloc_observer.dart  # Custom BLoC observer for logging
-│   │   └── base_bloc.dart          # Abstract base BLoC class
-│   ├── cache/                      # Caching mechanisms
-│   │   ├── shared_prefs_cache.dart # SharedPreferences implementation
-│   │   └── secure_storage.dart     # Secure storage implementation
-│   ├── constant/                   # App constants
-│   │   ├── app_constants.dart      # Global app constants
-│   │   ├── asset_paths.dart        # Asset file paths
-│   │   └── api_constants.dart      # API related constants
-│   ├── errors/                     # Error handling
-│   │   ├── app_exceptions.dart     # Custom exception classes
-│   │   ├── error_handler.dart      # Global error handler
-│   │   └── failure.dart            # Failure result classes
-│   ├── extensions/                 # Extension methods
-│   │   ├── context_extensions.dart # BuildContext extensions
-│   │   ├── string_extensions.dart  # String utility extensions
-│   │   └── datetime_extensions.dart # DateTime helper extensions
-│   ├── localization/               # Internationalization
-│   │   ├── app_localizations.dart  # Localization delegate
-│   │   ├── language_constants.dart # Language constants
-│   │   └── localization_helper.dart # Helper for easy text access
-│   ├── network/                    # Network utilities
-│   │   ├── network_info.dart       # Network connectivity checker
-│   │   └── connection_checker.dart # Internet connection status
-│   ├── router/                     # Routing system
-│   │   ├── app_router.dart         # Router configuration (GoRouter)
-│   │   ├── route_guards.dart       # Authorization route guards
-│   │   └── route_constants.dart    # Named route constants
-│   ├── security/                   # Security utilities
-│   │   ├── biometric_helper.dart   # Biometric authentication
-│   │   ├── encryption_service.dart # Data encryption utilities
-│   │   └── ssl_pinning.dart        # Certificate pinning
-│   ├── themes/                     # App theming
-│   │   ├── app_theme.dart          # Theme configuration
-│   │   ├── app_colors.dart         # Color constants
-│   │   ├── text_styles.dart        # Typography styles
-│   │   └── theme_extensions.dart   # Custom theme extensions
-│   ├── usecases/                   # Base usecase interfaces
-│   │   └── usecase.dart            # UseCase base class
-│   └── utils/                      # Utility functions
-│       ├── app_config_loader.dart  # App configuration loader
-│       ├── logger.dart             # Logging utility
-│       ├── date_formatter.dart     # Date formatting utilities
-│       └── validators.dart         # Input validation functions
-│
-├── features/                       # Feature modules
-│   ├── auth/                       # Authentication feature
-│   │   ├── data/                   # Data layer
-│   │   │   ├── datasources/        # Data sources
-│   │   │   │   ├── remote/         # Remote data sources
-│   │   │   │   │   ├── firebase_auth_data_source.dart
-│   │   │   │   │   └── supabase_user_data_source.dart
-│   │   │   │   └── local/          # Local data sources
-│   │   │   │       └── auth_local_data_source.dart
-│   │   │   ├── models/             # Data models
-│   │   │   │   ├── user_model.dart # User data model
-│   │   │   │   └── credentials_model.dart # Login credentials model
-│   │   │   └── repositories/       # Repository implementations
-│   │   │       └── auth_repository_impl.dart
-│   │   ├── domain/                 # Domain layer
-│   │   │   ├── entities/           # Business entities
-│   │   │   │   ├── user.dart       # User entity
-│   │   │   │   └── user_role.dart  # User role enum
-│   │   │   ├── repositories/       # Repository interfaces
-│   │   │   │   └── auth_repository.dart
-│   │   │   └── usecases/           # Business logic
-│   │   │       ├── sign_in_with_google.dart
-│   │   │       ├── sign_in_with_email.dart
-│   │   │       ├── sign_out.dart
-│   │   │       └── get_current_user.dart
-│   │   └── presentation/           # Presentation layer
-│   │       ├── bloc/               # State management
-│   │       │   ├── auth_bloc.dart
-│   │       │   ├── auth_event.dart
-│   │       │   └── auth_state.dart
-│   │       ├── pages/              # UI pages
-│   │       │   ├── login_page.dart
-│   │       │   ├── signup_page.dart
-│   │       │   └── forgot_password_page.dart
-│   │       └── widgets/            # UI components
-│   │           ├── login_form.dart
-│   │           ├── social_login_buttons.dart
-│   │           └── auth_text_field.dart
-│   │
-│   ├── hotel_booking/              # Hotel Booking feature
-│   │   ├── data/                   # Data layer
-│   │   │   ├── datasources/        # Data sources
-│   │   │   │   ├── remote/         # Remote data sources
-│   │   │   │   │   └── hotel_api_service.dart
-│   │   │   │   └── local/          # Local data sources
-│   │   │   │       └── hotel_cache_service.dart
-│   │   │   ├── models/             # Data models
-│   │   │   │   ├── hotel_model.dart
-│   │   │   │   ├── room_model.dart
-│   │   │   │   └── booking_model.dart
-│   │   │   └── repositories/       # Repository implementations
-│   │   │       └── hotel_repository_impl.dart
-│   │   ├── domain/                 # Domain layer
-│   │   │   ├── entities/           # Business entities
-│   │   │   │   ├── hotel.dart
-│   │   │   │   ├── room.dart
-│   │   │   │   └── booking.dart
-│   │   │   ├── repositories/       # Repository interfaces
-│   │   │   │   └── hotel_repository.dart
-│   │   │   └── usecases/           # Business logic
-│   │   │       ├── search_hotels.dart
-│   │   │       ├── get_hotel_details.dart
-│   │   │       ├── book_room.dart
-│   │   │       └── get_bookings.dart
-│   │   └── presentation/           # Presentation layer
-│   │       ├── bloc/               # State management
-│   │       │   ├── hotel_search/   # Hotel search flow
-│   │       │   │   ├── hotel_search_bloc.dart
-│   │       │   │   ├── hotel_search_event.dart
-│   │       │   │   └── hotel_search_state.dart
-│   │       │   └── booking/        # Booking flow
-│   │       │       ├── booking_bloc.dart
-│   │       │       ├── booking_event.dart
-│   │       │       └── booking_state.dart
-│   │       ├── pages/              # UI pages
-│   │       │   ├── hotel_search_page.dart
-│   │       │   ├── hotel_detail_page.dart
-│   │       │   ├── room_selection_page.dart
-│   │       │   ├── booking_confirmation_page.dart
-│   │       │   └── booking_history_page.dart
-│   │       └── widgets/            # UI components
-│   │           ├── hotel_card.dart
-│   │           ├── room_card.dart
-│   │           ├── date_range_picker.dart
-│   │           └── booking_summary.dart
-│   │
-│   ├── shopping/                   # Shopping feature
-│   │   ├── data/                   # Data layer
-│   │   │   ├── datasources/        # Data sources
-│   │   │   │   ├── remote/         # Remote data sources
-│   │   │   │   │   └── products_api_service.dart
-│   │   │   │   └── local/          # Local data sources
-│   │   │   │       └── cart_local_storage.dart
-│   │   │   ├── models/             # Data models
-│   │   │   │   ├── product_model.dart
-│   │   │   │   ├── cart_item_model.dart
-│   │   │   │   └── order_model.dart
-│   │   │   └── repositories/       # Repository implementations
-│   │   │       ├── product_repository_impl.dart
-│   │   │       ├── cart_repository_impl.dart
-│   │   │       └── order_repository_impl.dart
-│   │   ├── domain/                 # Domain layer
-│   │   │   ├── entities/           # Business entities
-│   │   │   │   ├── product.dart
-│   │   │   │   ├── cart_item.dart
-│   │   │   │   └── order.dart
-│   │   │   ├── repositories/       # Repository interfaces
-│   │   │   │   ├── product_repository.dart
-│   │   │   │   ├── cart_repository.dart
-│   │   │   │   └── order_repository.dart
-│   │   │   └── usecases/           # Business logic
-│   │   │       ├── get_products.dart
-│   │   │       ├── search_products.dart
-│   │   │       ├── add_to_cart.dart
-│   │   │       ├── update_cart_item.dart
-│   │   │       ├── remove_from_cart.dart
-│   │   │       ├── get_cart.dart
-│   │   │       ├── checkout.dart
-│   │   │       └── get_orders.dart
-│   │   └── presentation/           # Presentation layer
-│   │       ├── bloc/               # State management
-│   │       │   ├── products/       # Products management
-│   │       │   │   ├── products_bloc.dart
-│   │       │   │   ├── products_event.dart
-│   │       │   │   └── products_state.dart
-│   │       │   ├── cart/           # Cart management
-│   │       │   │   ├── cart_bloc.dart
-│   │       │   │   ├── cart_event.dart
-│   │       │   │   └── cart_state.dart
-│   │       │   └── order/          # Order management
-│   │       │       ├── order_bloc.dart
-│   │       │       ├── order_event.dart
-│   │       │       └── order_state.dart
-│   │       ├── pages/              # UI pages
-│   │       │   ├── products_page.dart
-│   │       │   ├── product_details_page.dart
-│   │       │   ├── cart_page.dart
-│   │       │   ├── checkout_page.dart
-│   │       │   └── orders_history_page.dart
-│   │       └── widgets/            # UI components
-│   │           ├── product_card.dart
-│   │           ├── cart_item_widget.dart
-│   │           ├── payment_method_selector.dart
-│   │           └── order_summary.dart
-│   │
-│   ├── ocr_scanner/                # OCR Scanner feature
-│   │   ├── data/                   # Data layer
-│   │   │   ├── datasources/        # Data sources
-│   │   │   │   ├── remote/         # Remote data sources
-│   │   │   │   │   └── ocr_api_service.dart
-│   │   │   │   └── local/          # Local data sources
-│   │   │   │       └── scan_history_storage.dart
-│   │   │   ├── models/             # Data models
-│   │   │   │   ├── scan_result_model.dart
-│   │   │   │   └── scan_history_model.dart
-│   │   │   └── repositories/       # Repository implementations
-│   │   │       └── ocr_repository_impl.dart
-│   │   ├── domain/                 # Domain layer
-│   │   │   ├── entities/           # Business entities
-│   │   │   │   ├── scan_result.dart
-│   │   │   │   └── scan_history.dart
-│   │   │   ├── repositories/       # Repository interfaces
-│   │   │   │   └── ocr_repository.dart
-│   │   │   └── usecases/           # Business logic
-│   │   │       ├── scan_image.dart
-│   │   │       ├── save_scan_result.dart
-│   │   │       └── get_scan_history.dart
-│   │   └── presentation/           # Presentation layer
-│   │       ├── bloc/               # State management
-│   │       │   ├── ocr_bloc.dart
-│   │       │   ├── ocr_event.dart
-│   │       │   └── ocr_state.dart
-│   │       ├── pages/              # UI pages
-│   │       │   ├── scanner_page.dart
-│   │       │   ├── scan_result_page.dart
-│   │       │   └── scan_history_page.dart
-│   │       └── widgets/            # UI components
-│   │           ├── camera_preview.dart
-│   │           ├── scan_controls.dart
-│   │           └── text_recognition_result.dart
-│   │
-│   ├── profile/                    # Profile feature
-│   │   ├── data/                   # Data layer
-│   │   │   ├── datasources/        # Data sources
-│   │   │   │   ├── remote/         # Remote data sources
-│   │   │   │   │   └── profile_api_service.dart
-│   │   │   │   └── local/          # Local data sources
-│   │   │   │       └── profile_local_storage.dart
-│   │   │   ├── models/             # Data models
-│   │   │   │   └── profile_model.dart
-│   │   │   └── repositories/       # Repository implementations
-│   │   │       └── profile_repository_impl.dart
-│   │   ├── domain/                 # Domain layer
-│   │   │   ├── entities/           # Business entities
-│   │   │   │   └── profile.dart
-│   │   │   ├── repositories/       # Repository interfaces
-│   │   │   │   └── profile_repository.dart
-│   │   │   └── usecases/           # Business logic
-│   │   │       ├── get_profile.dart
-│   │   │       ├── update_profile.dart
-│   │   │       └── change_password.dart
-│   │   └── presentation/           # Presentation layer
-│   │       ├── bloc/               # State management
-│   │       │   ├── profile_bloc.dart
-│   │       │   ├── profile_event.dart
-│   │       │   └── profile_state.dart
-│   │       ├── pages/              # UI pages
-│   │       │   ├── profile_page.dart
-│   │       │   ├── edit_profile_page.dart
-│   │       │   └── change_password_page.dart
-│   │       └── widgets/            # UI components
-│   │           ├── profile_header.dart
-│   │           ├── profile_menu_item.dart
-│   │           └── profile_image_picker.dart
-│   │
-│   └── admin_dashboard/            # Admin Dashboard feature
-│       ├── data/                   # Data layer
-│       │   ├── datasources/        # Data sources
-│       │   │   └── remote/         # Remote data sources
-│       │   │       ├── admin_api_service.dart
-│       │   │       ├── analytics_api_service.dart
-│       │   │       └── user_management_api_service.dart
-│       │   ├── models/             # Data models
-│       │   │   ├── analytics_model.dart
-│       │   │   ├── user_management_model.dart
-│       │   │   └── role_model.dart
-│       │   └── repositories/       # Repository implementations
-│       │       ├── admin_repository_impl.dart
-│       │       ├── analytics_repository_impl.dart
-│       │       └── user_management_repository_impl.dart
-│       ├── domain/                 # Domain layer
-│       │   ├── entities/           # Business entities
-│       │   │   ├── analytics_data.dart
-│       │   │   ├── user_management.dart
-│       │   │   └── role.dart
-│       │   ├── repositories/       # Repository interfaces
-│       │   │   ├── admin_repository.dart
-│       │   │   ├── analytics_repository.dart
-│       │   │   └── user_management_repository.dart
-│       │   └── usecases/           # Business logic
-│       │       ├── get_analytics.dart
-│       │       ├── get_users.dart
-│       │       ├── update_user.dart
-│       │       ├── delete_user.dart
-│       │       ├── assign_role.dart
-│       │       └── get_roles.dart
-│       └── presentation/           # Presentation layer
-│           ├── bloc/               # State management
-│           │   ├── analytics/      # Analytics management
-│           │   │   ├── analytics_bloc.dart
-│           │   │   ├── analytics_event.dart
-│           │   │   └── analytics_state.dart
-│           │   └── user_management/ # User management
-│           │       ├── user_management_bloc.dart
-│           │       ├── user_management_event.dart
-│           │       └── user_management_state.dart
-│           ├── pages/              # UI pages
-│           │   ├── dashboard_page.dart
-│           │   ├── analytics_page.dart
-│           │   ├── user_management_page.dart
-│           │   └── role_management_page.dart
-│           └── widgets/            # UI components
-│               ├── analytics_chart.dart
-│               ├── sales_summary.dart
-│               ├── user_table.dart
-│               └── role_editor.dart
-│
-├── common/                         # Shared code across features
-│   ├── widgets/                    # Shared widgets
-│   │   ├── app_button.dart         # Custom styled buttons
-│   │   ├── app_text_field.dart     # Custom text field
-│   │   ├── loading_indicator.dart  # Loading animation
-│   │   ├── error_view.dart         # Error UI component
-│   │   └── empty_state.dart        # Empty state UI component
-│   ├── models/                     # Shared models
-│   │   ├── result.dart             # Result wrapper (success/failure)
-│   │   └── pagination.dart         # Pagination data model
-│   └── extensions/                 # Shared extensions
-│       └── widget_extensions.dart  # Widget utility extensions
-│
-├── services/                       # Global services
-│   ├── rbac/                       # Role-Based Access Control
-│   │   ├── role_manager.dart       # Role management service
-│   │   ├── permission.dart         # Permission model
-│   │   └── permission_guard.dart   # UI permission guard widget
-│   ├── analytics/                  # Analytics tracking
-│   │   ├── analytics_service.dart  # Analytics tracking service
-│   │   └── event_constants.dart    # Analytics event names
-│   ├── navigation/                 # Navigation service
-│   │   └── navigation_service.dart # Navigation helper
-│   └── notification/               # Push notifications
-│       ├── notification_service.dart # Notification handler
-│       └── notification_mapper.dart # Maps payload to UI
-│
-├── di/                             # Dependency Injection
-│   ├── service_locator.dart        # Service locator configuration
-│   ├── feature_dependencies.dart   # Feature-specific dependencies
-│   └── core_dependencies.dart      # Core dependencies
-│
-├── config/                         # Configuration
-│   ├── app_config.dart             # Environment configuration
-│   ├── environment.dart            # Environment enum
-│   └── build_config.dart           # Build-specific configuration
-│
-├── app.dart                        # App configuration
-└── main.dart                       # Application entry point
+lib/
+├── core/                    # ส่วนกลางที่ใช้ร่วมกันทั้งแอพ
+│   ├── constants/          # ค่าคงที่
+│   ├── di/                 # Dependency Injection
+│   ├── errors/             # การจัดการ Error
+│   ├── extensions/         # Extension methods
+│   ├── network/            # Network utilities
+│   ├── services/           # Services กลาง
+│   ├── themes/             # Theme system
+│   ├── usecases/           # Base use cases
+│   └── utils/              # Utilities
+├── features/               # ฟีเจอร์ต่างๆ แยกตาม domain
+│   └── [feature_name]/     # แต่ละฟีเจอร์มีโครงสร้าง:
+│       ├── data/           # Data layer
+│       │   ├── datasources/
+│       │   ├── models/
+│       │   └── repositories/
+│       ├── domain/         # Business logic
+│       │   ├── entities/
+│       │   ├── repositories/
+│       │   └── usecases/
+│       └── presentation/   # UI layer
+│           ├── bloc/
+│           ├── pages/
+│           └── widgets/
+├── screens/                # หน้าจอหลัก
+├── services/               # Services เฉพาะ (RBAC, etc.)
+├── widgets/                # Shared widgets
+├── app.dart               # App configuration
+└── main.dart              # Entry point
 ```
 
-## 1. สถาปัตยกรรมซอฟต์แวร์ (Modular + Feature-First)
-- แยกแต่ละฟีเจอร์เป็นแพ็กเกจย่อย (Dart package) มีโฟลเดอร์ UI, domain, data ภายใน เพื่อให้ build/test/deploy แยกกันได้ง่ายและลด dependency conflict [Medium](https://medium.com/%40punithsuppar7795/flutter-modular-architecture-how-to-structure-a-scalable-app-4c3b31a7514c?utm_source=chatgpt.com) [Medium](https://medium.com/flutter-community/a-modular-flutter-project-approach-c7ea8f9bfd70?utm_source=chatgpt.com)
-- ใช้เลเยอร์ Domain (Entities, UseCases), Data (Repositories, API), Presentation (Widgets, ViewModels) แต่รวมไฟล์ของแต่ละฟีเจอร์ไว้ในโฟลเดอร์เดียว (feature-first) เพื่อ readability ลด ceremony ของ Clean Architecture ดั้งเดิม [Code With Andrea](https://codewithandrea.com/articles/flutter-project-structure/?utm_source=chatgpt.com) [DEV Community](https://dev.to/princetomarappdev/mastering-flutter-architecture-from-clean-to-feature-first-for-faster-scalable-development-4605?utm_source=chatgpt.com)
-## 2. การควบคุมสิทธิ์ (RBAC)
-- จัดการบทบาท 3 แบบ (admin, user, staff) โดยกำหนด permissions per module/action ใน central RoleManager class แล้วเชื่อมกับ GoRouter middleware เพื่อ guard routes [Medium](https://medium.com/%40m.goudjal.y/implementing-role-based-access-control-in-flutter-ui-with-gorouter-df4551c4930f?utm_source=chatgpt.com) [tula.co](https://tula.co/blog/user-access-model-rbac-in-flutter-ui/?utm_source=chatgpt.com)
-- แต่ละ widget ที่ต้องการสิทธิ์เฉพาะ ให้ตรวจสอบผ่าน RoleManager.hasPermission(…) ก่อน render ลด if-else กระจัดกระจายในโค้ด [DEV Community](https://dev.to/sparshmalhotra/role-based-access-control-in-flutter-4m6c?utm_source=chatgpt.com)
-## 3. โมดูลหลัก (Modules)
-### 3.1 Hotel Booking
-- โครงสร้าง: ```feature/hotel_booking/{data,domain,presentation}```
-- ฟีเจอร์: ค้นหาห้อง, จอง, ดูสถานะการจอง, ปฏิทินราคา [WTF Blog GitHub](https://blog.flutter.wtf/hotel-booking-app-development/?utm_source=chatgpt.com)
-### 3.2 Shopping
-- โครงสร้าง: ```feature/shopping/{data,domain,presentation}```
-- ฟีเจอร์: สินค้า, ตะกร้า, ชำระเงิน, order history [Medium](https://medium.com/flutter-community/flutter-shopping-basket-architecture-with-provider-8e91f496ad4c?utm_source=chatgpt.com) [Medium](https://medium.com/flutter-community/flutter-shopping-app-prototype-lessons-learned-16d6646bbed7?utm_source=chatgpt.com)
-### 3.3 Profile
-- โครงสร้าง: ```feature/profile/{data,domain,presentation}```
-- ฟีเจอร์: แก้ไขข้อมูลผู้ใช้, เปลี่ยนรหัสผ่าน, ตั้งค่าภาษา/ธีม
-### 3.4 Admin Dashboard
-- โครงสร้าง: ```feature/admin_dashboard/{data,domain,presentation}```
-- ฟีเจอร์: สรุปรายงานยอดจอง/ยอดขาย, จัดการผู้ใช้, ตั้งค่าสิทธิ์ [Medium](https://medium.com/%40htsuruo/how-to-develop-a-simple-modern-admin-dashboard-with-flutter-web-f507a9d0ab9c?utm_source=chatgpt.com) [GitHub](https://github.com/abuanwar072/Flutter-Responsive-Admin-Panel-or-Dashboard?utm_source=chatgpt.com)
-## 4. การจัดการสถานะ (State Management)
-- <b>Riverpod 2.x</b> สำหรับ global & async state (caching, API calls) [Medium](https://santhosh-adiga-u.medium.com/flutter-app-architecture-and-best-practices-b7752b41d3f2?utm_source=chatgpt.com)
-- <b>Bloc + Freezed</b> สำหรับ flows ที่ซับซ้อนต้อง test ชัดเจน (เช่น การชำระเงิน) [DEV Community](https://dev.to/sparshmalhotra/role-based-access-control-in-flutter-4m6c?utm_source=chatgpt.com)
-- <b>Signals</b> สำหรับ local widget state เบาๆ ตอบสนองเร็ว
-## 5. สองภาษา (i18n)
-- ใช้ ```flutter_localizations``` + Dart ```intl``` กับ ARB files (```intl_en.arb, intl_th.arb```) ตั้ง ```supportedLocales``` ใน MaterialApp [Flutter documentation](https://docs.flutter.dev/ui/accessibility-and-internationalization/internationalization?utm_source=chatgpt.com) [Medium](https://medium.com/%40punithsuppar7795/internationalization-i18n-and-localization-l10n-in-flutter-supporting-multiple-languages-e83c171ce9c6?utm_source=chatgpt.com)
-- สลับภาษาได้แบบไดนามิกโดยเก็บ locale ใน Riverpod/Bloc แล้วรีเฟรช MaterialApp(locale: currentLocale) [Medium](https://medium.com/%40punithsuppar7795/internationalization-i18n-and-localization-l10n-in-flutter-supporting-multiple-languages-e83c171ce9c6?utm_source=chatgpt.com)
-## 6. ธีมไดนามิก (Theming)
-- กำหนด ```ThemeData lightTheme``` และ ```darkTheme``` พร้อม ```themeMode``` ควบคุมด้วย state [Medium](https://medium.com/%40leadnatic/building-dynamic-themes-in-flutter-a-designers-guide-535879e3aea4?utm_source=chatgpt.com)
-- ใช้ <b>Theme Extension</b> เพิ่ม custom properties (colors, paddings) ให้ type-safe และ modular [Medium](https://medium.com/%40leadnatic/building-dynamic-themes-in-flutter-a-designers-guide-535879e3aea4?utm_source=chatgpt.com)
-## 7. ความปลอดภัย (Security)
-- เก็บ tokens ด้วย ```flutter_secure_storage``` พร้อม fallback error handling [Touchlane](https://touchlane.com/building-a-secure-flutter-app/?utm_source=chatgpt.com)
-- ใช้ Biometric (```local_auth```) พร้อมตรวจ compatibility ก่อนเรียกใช้งาน [Touchlane](https://touchlane.com/building-a-secure-flutter-app/?utm_source=chatgpt.com)
-- Obfuscate code ด้วย ```--obfuscate --split-debug-info``` ป้องกัน reverse-engineering [Medium](https://medium.com/%40subhashchandrashukla/securing-your-flutter-app-best-practices-for-obfuscation-encryption-and-endpoint-protection-d0361666eecf?utm_source=chatgpt.com)
-- เปิด HTTPS + certificate pinning ผ่าน Dio interceptor หรือ native plugin [Flutter documentation](https://docs.flutter.dev/security?utm_source=chatgpt.com)
+## 🏗️ Architecture Pattern
+
+### Clean Architecture + BLoC
+```
+UI (Pages/Widgets) 
+    ↓↑ Events/States
+BLoC (Business Logic)
+    ↓↑ 
+Use Cases (Domain Logic)
+    ↓↑
+Repository (Interface)
+    ↓↑
+Data Sources (API/Local)
+```
+
+## 📱 การเพิ่มหน้าใหม่
+
+### 1. สร้าง Feature Structure
+```bash
+features/
+└── your_feature/
+    ├── data/
+    │   ├── datasources/
+    │   │   └── your_feature_remote_data_source.dart
+    │   ├── models/
+    │   │   └── your_model.dart
+    │   └── repositories/
+    │       └── your_feature_repository_impl.dart
+    ├── domain/
+    │   ├── entities/
+    │   │   └── your_entity.dart
+    │   ├── repositories/
+    │   │   └── your_feature_repository.dart
+    │   └── usecases/
+    │       └── get_your_data.dart
+    └── presentation/
+        ├── bloc/
+        │   ├── your_feature_bloc.dart
+        │   ├── your_feature_event.dart
+        │   └── your_feature_state.dart
+        ├── pages/
+        │   └── your_feature_page.dart
+        └── widgets/
+            └── your_custom_widget.dart
+```
+
+### 2. Entity (Domain Layer)
+```dart
+// domain/entities/product.dart
+import 'package:equatable/equatable.dart';
+
+class Product extends Equatable {
+  final String id;
+  final String name;
+  final double price;
+
+  const Product({
+    required this.id,
+    required this.name,
+    required this.price,
+  });
+
+  @override
+  List<Object> get props => [id, name, price];
+}
+```
+
+### 3. Model (Data Layer)
+```dart
+// data/models/product_model.dart
+import '../../domain/entities/product.dart';
+
+class ProductModel extends Product {
+  const ProductModel({
+    required super.id,
+    required super.name,
+    required super.price,
+  });
+
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    return ProductModel(
+      id: json['id'],
+      name: json['name'],
+      price: json['price']?.toDouble() ?? 0.0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'price': price,
+    };
+  }
+}
+```
+
+### 4. Repository
+```dart
+// domain/repositories/product_repository.dart
+abstract class ProductRepository {
+  Future<Either<Failure, List<Product>>> getProducts();
+  Future<Either<Failure, Product>> getProduct(String id);
+}
+
+// data/repositories/product_repository_impl.dart
+class ProductRepositoryImpl implements ProductRepository {
+  final ProductRemoteDataSource remoteDataSource;
+  
+  ProductRepositoryImpl({required this.remoteDataSource});
+  
+  @override
+  Future<Either<Failure, List<Product>>> getProducts() async {
+    try {
+      final products = await remoteDataSource.getProducts();
+      return Right(products);
+    } on ServerException {
+      return Left(ServerFailure());
+    }
+  }
+}
+```
+
+### 5. BLoC
+```dart
+// presentation/bloc/product_bloc.dart
+class ProductBloc extends Bloc<ProductEvent, ProductState> {
+  final GetProducts getProductsUseCase;
+  
+  ProductBloc({required this.getProductsUseCase}) : super(ProductInitial()) {
+    on<LoadProductsEvent>(_onLoadProducts);
+  }
+  
+  Future<void> _onLoadProducts(
+    LoadProductsEvent event,
+    Emitter<ProductState> emit,
+  ) async {
+    emit(ProductLoading());
+    
+    final result = await getProductsUseCase(NoParams());
+    
+    result.fold(
+      (failure) => emit(ProductError(failure.message)),
+      (products) => emit(ProductLoaded(products)),
+    );
+  }
+}
+```
+
+### 6. Page
+```dart
+// presentation/pages/product_page.dart
+class ProductPage extends StatelessWidget {
+  const ProductPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Products')),
+      body: BlocBuilder<ProductBloc, ProductState>(
+        builder: (context, state) {
+          if (state is ProductLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (state is ProductError) {
+            return Center(child: Text(state.message));
+          }
+          
+          if (state is ProductLoaded) {
+            return ListView.builder(
+              itemCount: state.products.length,
+              itemBuilder: (context, index) {
+                final product = state.products[index];
+                return ListTile(
+                  title: Text(product.name),
+                  subtitle: Text('฿${product.price}'),
+                );
+              },
+            );
+          }
+          
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+}
+```
+
+### 7. เพิ่มใน Dependency Injection
+```dart
+// core/di/injection_container.dart
+Future<void> _registerProductFeature() async {
+  // Data sources
+  sl.registerLazySingleton<ProductRemoteDataSource>(
+    () => ProductRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+  
+  // Repository
+  sl.registerLazySingleton<ProductRepository>(
+    () => ProductRepositoryImpl(remoteDataSource: sl()),
+  );
+  
+  // Use cases
+  sl.registerLazySingleton(() => GetProducts(sl()));
+  
+  // BLoC
+  sl.registerFactory(
+    () => ProductBloc(getProductsUseCase: sl()),
+  );
+}
+```
+
+### 8. เพิ่ม Route
+```dart
+// lib/app.dart - ใน _createRouter()
+GoRoute(
+  path: 'products',
+  builder: (context, state) => const ProductPage(),
+),
+```
+
+## 🎨 Theme System
+
+### การใช้ Theme
+```dart
+// ดึง theme colors
+final primaryColor = Theme.of(context).primaryColor;
+final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
+// ใช้ custom colors
+final successColor = context.customColors.success;
+
+// ใช้ typography
+final headlineStyle = context.typography.h1;
+
+// ใช้ spacing
+const padding = AppSpacing.md; // 16px
+AppSpacing.verticalGapLg // SizedBox(height: 24)
+```
+
+### การแก้ Theme
+```dart
+// core/themes/app_theme.dart
+// แก้ไขที่ lightTheme หรือ darkTheme
+
+// เพิ่มสีใหม่
+// core/themes/app_colors.dart
+static const Color newColor = Color(0xFF123456);
+```
+
+## 🔐 Authentication & Authorization
+
+### Authentication Flow
+```dart
+// Sign In
+context.read<AuthBloc>().add(SignInWithGoogleEvent());
+
+// Sign Out
+context.read<AuthBloc>().add(SignOutEvent());
+
+// Check Auth Status
+final isAuthenticated = context.read<AuthBloc>().state is Authenticated;
+```
+
+### Role-Based Access Control (RBAC)
+```dart
+// ตรวจสอบ Permission
+PermissionGuard(
+  permissionId: 'manage_products',
+  child: YourWidget(),
+  fallback: const Text('Access Denied'),
+)
+
+// ตรวจสอบ Role
+if (user.isAdmin) {
+  // Admin features
+}
+
+// เพิ่ม Permission ใหม่
+// services/rbac/role_manager.dart
+const Permission(
+  id: 'new_permission',
+  name: 'New Permission',
+  description: 'Description',
+  category: 'category',
+)
+```
+
+## 🗄️ Database (Supabase)
+
+### การเชื่อมต่อ API
+```dart
+// data/datasources/product_remote_data_source.dart
+class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
+  final SupabaseClient supabaseClient;
+  
+  @override
+  Future<List<ProductModel>> getProducts() async {
+    try {
+      final response = await supabaseClient
+          .from('products')
+          .select()
+          .order('created_at', ascending: false);
+          
+      return (response as List)
+          .map((e) => ProductModel.fromJson(e))
+          .toList();
+    } catch (e) {
+      throw ServerException('Failed to get products');
+    }
+  }
+}
+```
+
+### Service Client (สำหรับข้าม RLS)
+```dart
+// ใช้เมื่อต้องการข้าม Row Level Security
+SupabaseServiceClient().client
+    .from('table')
+    .select();
+```
+
+## 🧭 Navigation
+
+### การ Navigate
+```dart
+// ไปหน้าใหม่
+context.go('/products');
+
+// ไปหน้าใหม่พร้อม parameter
+context.go('/product/${product.id}');
+
+// Push หน้าใหม่ (เก็บ stack)
+context.push('/product-detail');
+
+// กลับหน้าเดิม
+context.pop();
+
+// Replace หน้าปัจจุบัน
+context.replace('/new-page');
+```
+
+### ป้องกันการเด้งกลับ
+```dart
+// ใช้ WillPopScope
+WillPopScope(
+  onWillPop: () async {
+    // Return false เพื่อป้องกันการกลับ
+    return false;
+  },
+  child: YourPage(),
+)
+```
+
+## ⚡ Performance Optimization
+
+### 1. ใช้ const constructor
+```dart
+const Text('Hello');
+const SizedBox(height: 16);
+```
+
+### 2. ใช้ ListView.builder สำหรับ list ยาว
+```dart
+ListView.builder(
+  itemCount: items.length,
+  itemBuilder: (context, index) => ItemWidget(items[index]),
+)
+```
+
+### 3. Cache data
+```dart
+class UserModel {
+  static UserModel? _cachedUser;
+  static DateTime? _cacheTimestamp;
+  
+  static bool _isCacheValid() {
+    if (_cachedUser == null || _cacheTimestamp == null) return false;
+    return DateTime.now().difference(_cacheTimestamp!) < Duration(minutes: 5);
+  }
+}
+```
+
+### 4. Lazy loading
+```dart
+// ใช้ FutureBuilder หรือ StreamBuilder
+FutureBuilder<Data>(
+  future: loadData(),
+  builder: (context, snapshot) {
+    if (snapshot.hasData) {
+      return DataWidget(snapshot.data!);
+    }
+    return const CircularProgressIndicator();
+  },
+)
+```
+
+## 🎯 Code Style & Conventions
+
+### Naming Conventions
+```dart
+// Classes: PascalCase
+class ProductModel {}
+
+// Variables/Functions: camelCase
+final productName = 'iPhone';
+void loadProducts() {}
+
+// Constants: camelCase หรือ SCREAMING_SNAKE_CASE
+const defaultTimeout = Duration(seconds: 30);
+const API_KEY = 'xxx';
+
+// Files: snake_case
+product_model.dart
+product_repository_impl.dart
+```
+
+### Import Order
+```dart
+// 1. Dart imports
+import 'dart:async';
+
+// 2. Flutter imports
+import 'package:flutter/material.dart';
+
+// 3. Package imports
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+// 4. Project imports (relative)
+import '../../domain/entities/product.dart';
+import '../bloc/product_bloc.dart';
+```
+
+## 🧩 Custom Widgets
+
+### สร้าง Reusable Widget
+```dart
+// widgets/custom_card.dart
+class CustomCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final VoidCallback? onTap;
+  
+  const CustomCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.onTap,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: AppSpacing.cardPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: context.typography.h5),
+              AppSpacing.verticalGapSm,
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+## 🚨 Error Handling
+
+### ใน BLoC
+```dart
+try {
+  final data = await repository.getData();
+  emit(DataLoaded(data));
+} on ServerException catch (e) {
+  emit(DataError(e.message));
+} catch (e) {
+  emit(DataError('Unexpected error occurred'));
+}
+```
+
+### แสดง Error UI
+```dart
+BlocBuilder<ProductBloc, ProductState>(
+  builder: (context, state) {
+    if (state is ProductError) {
+      return ErrorWidget(
+        message: state.message,
+        onRetry: () {
+          context.read<ProductBloc>().add(LoadProductsEvent());
+        },
+      );
+    }
+    // ...
+  },
+)
+```
+
+## 🔧 Debugging Tips
+
+### 1. ใช้ Logger Service
+```dart
+LoggerService.info('Loading products', 'PRODUCT');
+LoggerService.error('Failed to load', 'PRODUCT', error);
+```
+
+### 2. ตรวจสอบ State
+```dart
+// ใน BLoC
+@override
+void onChange(Change<ProductState> change) {
+  super.onChange(change);
+  LoggerService.debug('State change: ${change.currentState} → ${change.nextState}');
+}
+```
+
+### 3. Network Monitoring
+```dart
+// Check connection
+final isConnected = await NetworkInfo().isConnected;
+```
+
+## 📝 Best Practices
+
+1. **แยก Logic ออกจาก UI** - ใช้ BLoC pattern
+2. **ใช้ const ทุกที่ที่เป็นไปได้** - เพิ่ม performance
+3. **Handle errors ทุกจุด** - ไม่ปล่อยให้แอพ crash
+4. **Test edge cases** - null, empty list, network error
+5. **ใช้ Dependency Injection** - ง่ายต่อการ test และ maintain
+6. **เขียน documentation** - อธิบายส่วนที่ซับซ้อน
+7. **Follow conventions** - ทำให้โค้ดอ่านง่าย
+8. **Optimize imports** - ลบ import ที่ไม่ใช้
+9. **Use type safety** - ระบุ type ชัดเจน
+10. **Keep widgets small** - แยก widget ย่อยๆ
+
+## 🚀 Quick Start Checklist
+
+เมื่อจะเพิ่มฟีเจอร์ใหม่:
+
+- [ ] สร้างโครงสร้าง folder ตาม Clean Architecture
+- [ ] สร้าง Entity ก่อน (domain layer)
+- [ ] สร้าง Model extends Entity (data layer)
+- [ ] สร้าง Repository interface (domain)
+- [ ] Implement Repository (data)
+- [ ] สร้าง Use Cases
+- [ ] สร้าง BLoC (Events, States, Bloc)
+- [ ] สร้าง UI (Page & Widgets)
+- [ ] เพิ่ม DI registration
+- [ ] เพิ่ม Route
+- [ ] Test ทุก layer
+- [ ] เพิ่ม Permission ถ้าต้องการ
