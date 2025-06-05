@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:my_test_app/features/ocr_scanner/presentation/bloc/scanner_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,6 +59,7 @@ Future<void> init() async {
   await _registerThemeFeature();
   await _registerProfileFeature();
   await _registerSecurityFeature();
+  await _registerScannerFeature();
 }
 
 Future<void> _registerSecurityFeature() async {
@@ -206,4 +208,9 @@ Future<void> _registerThemeFeature() async {
       watchThemeChanges: sl(),
     ),
   );
+}
+
+Future<void> _registerScannerFeature() async {
+  // BLoC
+  sl.registerFactory(() => ScannerBloc());
 }

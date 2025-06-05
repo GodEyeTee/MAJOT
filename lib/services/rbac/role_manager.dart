@@ -60,6 +60,10 @@ class Permission {
   final List<String> dependencies;
   final bool isSystemPermission;
 
+  static var camera;
+
+  static var storage;
+
   const Permission({
     required this.id,
     required this.name,
