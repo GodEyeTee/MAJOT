@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/themes/app_spacing.dart';
 import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../../../features/auth/presentation/bloc/auth_state.dart';
+import '../../../../features/auth/domain/entities/user.dart';
 import '../../../../services/rbac/role_manager.dart';
 
 class HomePage extends StatelessWidget {
@@ -21,7 +22,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildAuthenticatedHome(BuildContext context, dynamic user) {
+  Widget _buildAuthenticatedHome(BuildContext context, User user) {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -29,7 +30,7 @@ class HomePage extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              Theme.of(context).primaryColor.withOpacity(0.1),
               Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
@@ -41,7 +42,7 @@ class HomePage extends StatelessWidget {
               SliverToBoxAdapter(child: _buildHeroSection(context, user)),
 
               // Quick Stats
-              if (user.role == UserRole.admin || user.role == UserRole.editor)
+              if (user.isAdmin || user.isEditor)
                 SliverToBoxAdapter(child: _buildQuickStats(context)),
 
               // Features Grid
@@ -54,7 +55,7 @@ class HomePage extends StatelessWidget {
 
               // Quick Actions
               SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 sliver: SliverToBoxAdapter(
                   child: _buildQuickActions(context, user),
                 ),
@@ -74,20 +75,17 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroSection(BuildContext context, dynamic user) {
+  Widget _buildHeroSection(BuildContext context, User user) {
     final theme = Theme.of(context);
     final greeting = _getGreeting();
 
     return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            theme.primaryColor,
-            theme.primaryColor.withValues(alpha: 0.8),
-          ],
+          colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
         ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
@@ -95,7 +93,7 @@ class HomePage extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.primaryColor.withValues(alpha: 0.3),
+            color: theme.primaryColor.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -120,7 +118,7 @@ class HomePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      user.displayName ?? 'User',
+                      user.safeDisplayName,
                       style: theme.textTheme.headlineMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -134,12 +132,12 @@ class HomePage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Container(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
               vertical: AppSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -148,7 +146,7 @@ class HomePage extends StatelessWidget {
                 Icon(_getRoleIcon(user.role), color: Colors.white, size: 16),
                 const SizedBox(width: 8),
                 Text(
-                  user.role.displayName,
+                  user.roleDisplayName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -162,18 +160,18 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildUserAvatar(BuildContext context, dynamic user) {
+  Widget _buildUserAvatar(BuildContext context, User user) {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          colors: [Colors.white, Colors.white.withValues(alpha: 0.8)],
+          colors: [Colors.white, Colors.white.withOpacity(0.8)],
         ),
       ),
       child: CircleAvatar(
         radius: 30,
-        backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+        backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
         child: Text(
           user.initials,
           style: TextStyle(
@@ -189,7 +187,7 @@ class HomePage extends StatelessWidget {
   Widget _buildQuickStats(BuildContext context) {
     return Container(
       height: 100,
-      margin: EdgeInsets.all(AppSpacing.md),
+      margin: const EdgeInsets.all(AppSpacing.md),
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -235,14 +233,14 @@ class HomePage extends StatelessWidget {
   }) {
     return Container(
       width: 140,
-      margin: EdgeInsets.only(right: AppSpacing.sm),
-      padding: EdgeInsets.all(AppSpacing.md),
+      margin: const EdgeInsets.only(right: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.1),
+            color: color.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -275,7 +273,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturesSection(BuildContext context, dynamic user) {
+  Widget _buildFeaturesSection(BuildContext context, User user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -336,14 +334,14 @@ class HomePage extends StatelessWidget {
     required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -355,7 +353,7 @@ class HomePage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -381,14 +379,14 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, dynamic user) {
+  Widget _buildQuickActions(BuildContext context, User user) {
     final actions = _getQuickActionsForRole(user.role);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Text(
             'Quick Actions',
             style: Theme.of(
@@ -403,13 +401,13 @@ class HomePage extends StatelessWidget {
 
   Widget _buildActionTile(BuildContext context, QuickAction action) {
     return Container(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -419,7 +417,7 @@ class HomePage extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: action.color.withValues(alpha: 0.1),
+            color: action.color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(action.icon, color: action.color),
@@ -458,7 +456,7 @@ class HomePage extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withOpacity(0.05),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               ),
@@ -507,7 +505,7 @@ class HomePage extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: 20),
@@ -550,7 +548,7 @@ class HomePage extends StatelessWidget {
         return Icons.edit;
       case UserRole.user:
         return Icons.person;
-      default:
+      case UserRole.guest:
         return Icons.person_outline;
     }
   }
@@ -573,31 +571,33 @@ class HomePage extends StatelessWidget {
       ),
     ];
 
-    if (role == UserRole.admin) {
-      return [
-        QuickAction(
-          icon: Icons.dashboard,
-          title: 'Admin Dashboard',
-          subtitle: 'Manage users and system',
-          route: '/admin',
-          color: Colors.purple,
-        ),
-        ...commonActions,
-      ];
-    } else if (role == UserRole.editor) {
-      return [
-        QuickAction(
-          icon: Icons.edit_note,
-          title: 'Manage Rooms',
-          subtitle: 'Edit room details and availability',
-          route: '/rooms',
-          color: Colors.orange,
-        ),
-        ...commonActions,
-      ];
+    switch (role) {
+      case UserRole.admin:
+        return [
+          QuickAction(
+            icon: Icons.dashboard,
+            title: 'Admin Dashboard',
+            subtitle: 'Manage users and system',
+            route: '/admin',
+            color: Colors.purple,
+          ),
+          ...commonActions,
+        ];
+      case UserRole.editor:
+        return [
+          QuickAction(
+            icon: Icons.edit_note,
+            title: 'Manage Rooms',
+            subtitle: 'Edit room details and availability',
+            route: '/rooms',
+            color: Colors.orange,
+          ),
+          ...commonActions,
+        ];
+      case UserRole.user:
+      case UserRole.guest:
+        return commonActions;
     }
-
-    return commonActions;
   }
 }
 

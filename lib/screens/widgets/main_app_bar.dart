@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_event.dart';
@@ -23,7 +24,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = user?.role.displayName ?? 'Unknown';
+    final roleDisplay = user?.roleDisplayName ?? 'Unknown';
 
     return AppBar(
       title: Column(
@@ -31,7 +32,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           Text(currentItem.label),
           Text(
-            '$role • $visibleItemsCount features',
+            '$roleDisplay • $visibleItemsCount features',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: Colors.white70),
@@ -127,11 +128,13 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   String _getSecurityLevel() {
     if (user?.role == null) return 'unknown';
-    switch (user!.role.name) {
-      case 'admin':
+    switch (user!.role) {
+      case UserRole.admin:
         return 'high';
-      case 'editor':
+      case UserRole.editor:
         return 'medium';
+      case UserRole.user:
+      case UserRole.guest:
       default:
         return 'standard';
     }
@@ -146,7 +149,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
         onRefresh();
         break;
       case 'security':
-        _showSecuritySettings(context);
+        context.push('/privacy-security');
         break;
       case 'signout':
         _showSignOutDialog(context);
@@ -158,27 +161,33 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             title: const Text('User Profile'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Email: ${user?.email ?? "No email"}'),
-                Text('Role: ${user?.role.displayName ?? "No role"}'),
+                _buildProfileRow('Email', user?.email ?? 'No email'),
+                const SizedBox(height: 8),
+                _buildProfileRow('Role', user?.roleDisplayName ?? 'No role'),
                 const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    onRefresh();
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh Data'),
+                const Divider(),
+                const SizedBox(height: 16),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      context.push('/profile');
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit Profile'),
+                  ),
                 ),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Close'),
               ),
             ],
@@ -186,20 +195,20 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  void _showSecuritySettings(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Security Settings'),
-            content: const Text('Security settings will be implemented here.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
+  Widget _buildProfileRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(
+            '$label:',
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(value)),
+      ],
     );
   }
 
@@ -207,17 +216,17 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             title: const Text('Sign Out'),
             content: const Text('Are you sure you want to sign out?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                   context.read<AuthBloc>().add(SignOutEvent());
                 },
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
