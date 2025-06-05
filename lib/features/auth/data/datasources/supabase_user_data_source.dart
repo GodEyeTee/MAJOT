@@ -11,6 +11,7 @@ abstract class SupabaseUserDataSource {
   Future<UserModel?> getUser(String id);
   Future<void> updateUserRole(String id, String role);
   Future<bool> validateConnection();
+  Future<void> saveLoginHistory(Map<String, dynamic> loginData);
 }
 
 class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
@@ -170,6 +171,32 @@ class SupabaseUserDataSourceImpl implements SupabaseUserDataSource {
         'SUPABASE',
       );
       return false;
+    }
+  }
+
+  @override
+  Future<void> saveLoginHistory(Map<String, dynamic> loginData) async {
+    try {
+      LoggerService.info('Saving login history', 'SUPABASE');
+
+      // Use RPC function to bypass RLS
+      await _client
+          .rpc(
+            'add_login_history',
+            params: {
+              'p_user_id': loginData['user_id'],
+              'p_device': loginData['device'] ?? 'Unknown',
+              'p_location': loginData['location'] ?? 'Unknown',
+              'p_ip_address': loginData['ip_address'] ?? '0.0.0.0',
+              'p_is_successful': loginData['is_successful'] ?? true,
+            },
+          )
+          .timeout(_operationTimeout);
+
+      LoggerService.info('Login history saved successfully', 'SUPABASE');
+    } catch (e) {
+      LoggerService.error('Failed to save login history', 'SUPABASE', e);
+      throw DatabaseException('Failed to save login history: ${e.toString()}');
     }
   }
 

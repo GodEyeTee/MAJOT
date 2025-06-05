@@ -1,3 +1,4 @@
+import 'package:my_test_app/features/auth/data/models/user_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/services/logger_service.dart';
@@ -9,6 +10,14 @@ abstract class SecurityRemoteDataSource {
   Future<List<LoginHistoryModel>> getLoginHistory(String userId);
   Future<List<ConnectedDeviceModel>> getConnectedDevices(String userId);
   Future<void> revokeDevice(String deviceId);
+}
+
+abstract class SupabaseUserDataSource {
+  Future<void> saveUser(UserModel user);
+  Future<UserModel?> getUser(String id);
+  Future<void> updateUserRole(String id, String role);
+  Future<bool> validateConnection();
+  Future<void> saveLoginHistory(Map<String, dynamic> loginData);
 }
 
 class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
@@ -24,87 +33,16 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
         'SECURITY_DS',
       );
 
-      // ลองดึงข้อมูลจาก security_settings table
       final response =
           await supabaseClient
-              .from('security_settings')
-              .select()
-              .eq('user_id', userId)
-              .maybeSingle();
+              .rpc(
+                'get_or_create_security_settings',
+                params: {'p_user_id': userId},
+              )
+              .single();
 
-      // ถ้าไม่มีข้อมูล ให้สร้างใหม่
-      if (response == null) {
-        LoggerService.info(
-          'Security settings not found, creating new',
-          'SECURITY_DS',
-        );
-
-        final newSettings = {
-          'user_id': userId,
-          'two_factor_enabled': false,
-          'biometric_enabled': false,
-          'privacy_preferences': {
-            'show_email': false,
-            'show_phone': false,
-            'show_profile': true,
-            'allow_analytics': true,
-            'allow_marketing': false,
-          },
-        };
-
-        await supabaseClient.from('security_settings').insert(newSettings);
-
-        // ดึงข้อมูลที่สร้างใหม่
-        final createdResponse =
-            await supabaseClient
-                .from('security_settings')
-                .select()
-                .eq('user_id', userId)
-                .single();
-
-        // Get login history และ connected devices
-        final loginHistory = await getLoginHistory(userId);
-        final connectedDevices = await getConnectedDevices(userId);
-
-        final settingsData = {
-          ...createdResponse,
-          'login_history':
-              loginHistory
-                  .map(
-                    (e) => {
-                      'id': e.id,
-                      'timestamp': e.timestamp.toIso8601String(),
-                      'device': e.device,
-                      'location': e.location,
-                      'ip_address': e.ipAddress,
-                      'is_successful': e.isSuccessful,
-                    },
-                  )
-                  .toList(),
-          'connected_devices':
-              connectedDevices
-                  .map(
-                    (e) => {
-                      'id': e.id,
-                      'name': e.name,
-                      'type': e.type,
-                      'last_active': e.lastActive.toIso8601String(),
-                      'is_current': e.isCurrent,
-                    },
-                  )
-                  .toList(),
-        };
-
-        LoggerService.info(
-          'Security settings created successfully',
-          'SECURITY_DS',
-        );
-        return SecuritySettingsModel.fromJson(settingsData);
-      }
-
-      // Get login history และ connected devices
+      // Get login history
       final loginHistory = await getLoginHistory(userId);
-      final connectedDevices = await getConnectedDevices(userId);
 
       final settingsData = {
         ...response,
@@ -121,18 +59,7 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
                   },
                 )
                 .toList(),
-        'connected_devices':
-            connectedDevices
-                .map(
-                  (e) => {
-                    'id': e.id,
-                    'name': e.name,
-                    'type': e.type,
-                    'last_active': e.lastActive.toIso8601String(),
-                    'is_current': e.isCurrent,
-                  },
-                )
-                .toList(),
+        'connected_devices': [],
       };
 
       LoggerService.info(
@@ -142,8 +69,6 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
       return SecuritySettingsModel.fromJson(settingsData);
     } catch (e) {
       LoggerService.error('Failed to get security settings', 'SECURITY_DS', e);
-
-      // Return default settings on error
       return SecuritySettingsModel(
         userId: userId,
         privacyPreferences: const PrivacyPreferencesModel(),
@@ -158,26 +83,15 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
     try {
       LoggerService.info('Updating security settings', 'SECURITY_DS');
 
-      // ตรวจสอบว่ามี settings อยู่แล้วหรือไม่
-      final existing =
-          await supabaseClient
-              .from('security_settings')
-              .select()
-              .eq('user_id', settings.userId)
-              .maybeSingle();
-
-      if (existing == null) {
-        // ถ้าไม่มีให้สร้างใหม่
-        await supabaseClient
-            .from('security_settings')
-            .insert(settings.toJson());
-      } else {
-        // ถ้ามีให้ update
-        await supabaseClient
-            .from('security_settings')
-            .update(settings.toJson())
-            .eq('user_id', settings.userId);
-      }
+      await supabaseClient.rpc(
+        'update_security_settings',
+        params: {
+          'p_user_id': settings.userId,
+          'p_biometric_enabled': settings.biometricEnabled,
+          'p_privacy_preferences':
+              (settings.privacyPreferences as PrivacyPreferencesModel).toJson(),
+        },
+      );
 
       LoggerService.info(
         'Security settings updated successfully',
@@ -189,13 +103,20 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
         'SECURITY_DS',
         e,
       );
-      throw ServerException('Failed to update security settings');
+      throw ServerException(
+        'Failed to update security settings: ${e.toString()}',
+      );
     }
   }
 
   @override
   Future<List<LoginHistoryModel>> getLoginHistory(String userId) async {
     try {
+      LoggerService.info(
+        'Getting login history for user: $userId',
+        'SECURITY_DS',
+      );
+
       final response = await supabaseClient
           .from('login_history')
           .select()
@@ -203,11 +124,21 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
           .order('timestamp', ascending: false)
           .limit(10);
 
-      return (response as List)
-          .map((e) => LoginHistoryModel.fromJson(e))
-          .toList();
+      if ((response as List).isEmpty) {
+        LoggerService.info('No login history found', 'SECURITY_DS');
+        return [];
+      }
+
+      final history =
+          (response as List).map((e) => LoginHistoryModel.fromJson(e)).toList();
+
+      LoggerService.info(
+        'Retrieved ${history.length} login history entries',
+        'SECURITY_DS',
+      );
+      return history;
     } catch (e) {
-      LoggerService.warning('Failed to get login history', 'SECURITY_DS');
+      LoggerService.warning('Failed to get login history: $e', 'SECURITY_DS');
       return [];
     }
   }

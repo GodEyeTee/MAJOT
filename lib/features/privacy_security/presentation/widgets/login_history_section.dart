@@ -68,11 +68,11 @@ class LoginHistorySection extends StatelessWidget {
           color: login.isSuccessful ? Colors.green : Colors.red,
         ),
       ),
-      title: Text(login.device),
+      title: Text(login.device.isNotEmpty ? login.device : 'Unknown Device'),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(login.location),
+          Text(login.location.isNotEmpty ? login.location : 'Unknown Location'),
           Text(
             _formatTime(login.timestamp),
             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
@@ -84,10 +84,34 @@ class LoginHistorySection extends StatelessWidget {
               ? IconButton(
                 icon: const Icon(Icons.block, color: Colors.red),
                 onPressed: () {
-                  // Block device/IP
+                  _showBlockConfirmation(context, login);
                 },
               )
               : null,
+    );
+  }
+
+  void _showBlockConfirmation(BuildContext context, LoginHistory login) {
+    showDialog(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Block Device'),
+            content: Text('Block ${login.device} from accessing your account?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Block'),
+              ),
+            ],
+          ),
     );
   }
 

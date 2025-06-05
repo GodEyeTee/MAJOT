@@ -37,7 +37,13 @@ class SecurityRepositoryImpl implements SecurityRepository {
         lastPasswordChange: settings.lastPasswordChange,
         loginHistory: settings.loginHistory,
         connectedDevices: settings.connectedDevices,
-        privacyPreferences: settings.privacyPreferences,
+        privacyPreferences: PrivacyPreferencesModel(
+          showEmail: settings.privacyPreferences.showEmail,
+          showPhone: settings.privacyPreferences.showPhone,
+          showProfile: settings.privacyPreferences.showProfile,
+          allowAnalytics: settings.privacyPreferences.allowAnalytics,
+          allowMarketing: settings.privacyPreferences.allowMarketing,
+        ),
       );
 
       await remoteDataSource.updateSecuritySettings(model);

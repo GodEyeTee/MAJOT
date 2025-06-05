@@ -66,23 +66,26 @@ class _PrivacySecurityPageState extends State<PrivacySecurityPage> {
           }
 
           if (state is SecurityLoaded) {
-            return SingleChildScrollView(
-              padding: AppSpacing.screenPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SecuritySection(settings: state.settings),
-                  AppSpacing.verticalGapLg,
-                  const Divider(),
-                  AppSpacing.verticalGapLg,
-                  PrivacySection(settings: state.settings),
-                  AppSpacing.verticalGapLg,
-                  const Divider(),
-                  AppSpacing.verticalGapLg,
-                  LoginHistorySection(
-                    loginHistory: state.settings.loginHistory,
-                  ),
-                ],
+            return RefreshIndicator(
+              onRefresh: () async => _loadSecuritySettings(),
+              child: SingleChildScrollView(
+                padding: AppSpacing.screenPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SecuritySection(settings: state.settings),
+                    AppSpacing.verticalGapLg,
+                    const Divider(),
+                    AppSpacing.verticalGapLg,
+                    PrivacySection(settings: state.settings),
+                    AppSpacing.verticalGapLg,
+                    const Divider(),
+                    AppSpacing.verticalGapLg,
+                    LoginHistorySection(
+                      loginHistory: state.settings.loginHistory,
+                    ),
+                  ],
+                ),
               ),
             );
           }

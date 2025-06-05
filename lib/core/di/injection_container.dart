@@ -11,7 +11,8 @@ import '../services/supabase_service_client.dart';
 
 // Auth feature
 import '../../features/auth/data/datasources/firebase_auth_data_source.dart';
-import '../../features/auth/data/datasources/supabase_user_data_source.dart';
+import '../../features/auth/data/datasources/supabase_user_data_source.dart'
+    as auth;
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/is_authenticated.dart';
@@ -143,8 +144,8 @@ Future<void> _registerAuthFeature() async {
   );
 
   // *** แก้ไขตรงนี้ - ใช้ SupabaseServiceClient แทน SupabaseClient ***
-  sl.registerLazySingleton<SupabaseUserDataSource>(
-    () => SupabaseUserDataSourceImpl(
+  sl.registerLazySingleton<auth.SupabaseUserDataSource>(
+    () => auth.SupabaseUserDataSourceImpl(
       serviceClient: sl<SupabaseServiceClient>(), // ใช้ service client
     ),
   );
@@ -153,7 +154,7 @@ Future<void> _registerAuthFeature() async {
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       firebaseAuthDataSource: sl<FirebaseAuthDataSource>(),
-      supabaseUserDataSource: sl<SupabaseUserDataSource>(),
+      supabaseUserDataSource: sl<auth.SupabaseUserDataSource>(),
     ),
   );
 

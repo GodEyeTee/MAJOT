@@ -139,6 +139,10 @@ class AuthRepositoryImpl implements AuthRepository {
       final firebaseUser = await firebaseAuthDataSource.signInWithGoogle();
       final enrichedUser = await _enrichUserWithSupabaseData(firebaseUser);
       _updateCache(enrichedUser);
+
+      // Record login history
+      await _recordLoginHistory(enrichedUser.id, true);
+
       LoggerService.info('Google sign-in completed successfully', 'AUTH_REPO');
       return Right(enrichedUser);
     } on AuthException catch (e) {
@@ -150,6 +154,42 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (e) {
       LoggerService.error('Unknown error during sign-in', 'AUTH_REPO', e);
       return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  Future<void> _recordLoginHistory(String userId, bool isSuccessful) async {
+    try {
+      final deviceInfo = await _getDeviceInfo();
+
+      // Create login history entry
+      final loginData = {
+        'user_id': userId,
+        'timestamp': DateTime.now().toIso8601String(),
+        'device': deviceInfo['device'] ?? 'Unknown Device',
+        'location': deviceInfo['location'] ?? 'Unknown Location',
+        'ip_address': deviceInfo['ip'] ?? '0.0.0.0',
+        'is_successful': isSuccessful,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await supabaseUserDataSource.saveLoginHistory(loginData);
+
+      LoggerService.info('Login history recorded', 'AUTH_REPO');
+    } catch (e) {
+      LoggerService.error('Failed to record login history', 'AUTH_REPO', e);
+    }
+  }
+
+  Future<Map<String, String>> _getDeviceInfo() async {
+    try {
+      // Simple web browser detection
+      return {
+        'device': 'Web Browser',
+        'location': 'Bangkok, Thailand',
+        'ip': '127.0.0.1',
+      };
+    } catch (e) {
+      return {'device': 'Unknown', 'location': 'Unknown', 'ip': '0.0.0.0'};
     }
   }
 

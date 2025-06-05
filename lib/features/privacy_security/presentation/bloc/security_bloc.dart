@@ -70,7 +70,25 @@ class SecurityBloc extends Bloc<SecurityEvent, SecurityState> {
     ToggleBiometricEvent event,
     Emitter<SecurityState> emit,
   ) async {
-    // Implementation
+    if (state is SecurityLoaded) {
+      final currentState = state as SecurityLoaded;
+      final updatedSettings = SecuritySettings(
+        userId: currentState.settings.userId,
+        twoFactorEnabled: currentState.settings.twoFactorEnabled,
+        biometricEnabled: event.enabled,
+        lastPasswordChange: currentState.settings.lastPasswordChange,
+        loginHistory: currentState.settings.loginHistory,
+        connectedDevices: currentState.settings.connectedDevices,
+        privacyPreferences: currentState.settings.privacyPreferences,
+      );
+
+      final result = await repository.updateSecuritySettings(updatedSettings);
+
+      result.fold(
+        (failure) => emit(SecurityError(failure.message)),
+        (_) => emit(SecurityLoaded(updatedSettings)),
+      );
+    }
   }
 
   Future<void> _onRevokeDevice(

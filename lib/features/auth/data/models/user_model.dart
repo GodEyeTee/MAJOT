@@ -294,6 +294,36 @@ class UserModel extends User {
     return 'User';
   }
 
+  @override
+  String get maskedEmail {
+    if (email == null || email!.isEmpty) return '***';
+
+    final parts = email!.split('@');
+    if (parts.length != 2) return '***';
+
+    final username = parts[0];
+    final domain = parts[1];
+
+    if (username.length <= 2) {
+      return '${username[0]}***@$domain';
+    }
+
+    return '${username.substring(0, 2)}***@$domain';
+  }
+
+  @override
+  String get maskedPhoneNumber {
+    if (phoneNumber == null || phoneNumber!.isEmpty) return '***';
+
+    // Remove all non-digit characters
+    final digits = phoneNumber!.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length < 6) return '***';
+
+    // Show first 3 and last 2 digits
+    return '${digits.substring(0, 3)}****${digits.substring(digits.length - 2)}';
+  }
+
   bool get hasVerifiedEmail {
     return emailVerified && email != null && email!.isNotEmpty;
   }

@@ -18,58 +18,29 @@ class SecuritySection extends StatelessWidget {
         Text('Security', style: Theme.of(context).textTheme.headlineSmall),
         AppSpacing.verticalGapMd,
         Card(
-          child: Column(
-            children: [
-              SwitchListTile(
-                title: const Text('Two-Factor Authentication'),
-                subtitle: const Text('Add an extra layer of security'),
-                value: settings.twoFactorEnabled,
-                onChanged: (value) {
-                  context.read<SecurityBloc>().add(ToggleTwoFactorEvent(value));
-                },
-                secondary: const Icon(Icons.security),
+          child: SwitchListTile(
+            title: const Text('Biometric Authentication'),
+            subtitle: const Text(
+              'Use fingerprint or face ID to secure your account',
+            ),
+            value: settings.biometricEnabled,
+            onChanged: (value) {
+              context.read<SecurityBloc>().add(ToggleBiometricEvent(value));
+            },
+            secondary: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor..withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const Divider(height: 1),
-              SwitchListTile(
-                title: const Text('Biometric Authentication'),
-                subtitle: const Text('Use fingerprint or face ID'),
-                value: settings.biometricEnabled,
-                onChanged: (value) {
-                  context.read<SecurityBloc>().add(ToggleBiometricEvent(value));
-                },
-                secondary: const Icon(Icons.fingerprint),
+              child: Icon(
+                Icons.fingerprint,
+                color: Theme.of(context).primaryColor,
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.password),
-                title: const Text('Change Password'),
-                subtitle: Text(
-                  settings.lastPasswordChange != null
-                      ? 'Last changed ${_formatDate(settings.lastPasswordChange!)}'
-                      : 'Never changed',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showChangePasswordDialog(context),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date).inDays;
-
-    if (difference == 0) return 'today';
-    if (difference == 1) return 'yesterday';
-    if (difference < 30) return '$difference days ago';
-    if (difference < 365) return '${(difference / 30).floor()} months ago';
-    return '${(difference / 365).floor()} years ago';
-  }
-
-  void _showChangePasswordDialog(BuildContext context) {
-    // Implementation
   }
 }
