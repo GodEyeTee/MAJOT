@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_test_app/features/privacy_security/presentation/pages/privacy_security_page.dart';
+import 'features/privacy_security/presentation/bloc/security_bloc.dart';
+import 'package:my_test_app/features/profile/presentation/bloc/profile_bloc.dart';
+import 'package:my_test_app/features/profile/presentation/pages/profile_page.dart';
 
 import 'core/di/injection_container.dart' as di;
 import 'core/themes/app_theme.dart';
@@ -36,6 +40,8 @@ class _AppState extends State<App> {
           create: (context) => di.sl<AuthBloc>()..add(CheckAuthStatusEvent()),
         ),
         BlocProvider<ThemeBloc>(create: (context) => di.sl<ThemeBloc>()),
+        BlocProvider<ProfileBloc>(create: (context) => di.sl<ProfileBloc>()),
+        BlocProvider<SecurityBloc>(create: (context) => di.sl<SecurityBloc>()),
       ],
       child: Builder(
         builder: (context) {
@@ -80,7 +86,21 @@ class _AppState extends State<App> {
       initialLocation: '/',
       navigatorKey: GlobalKey<NavigatorState>(),
       routes: [
-        GoRoute(path: '/', builder: (context, state) => const MainScreen()),
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const MainScreen(),
+          routes: [
+            // ใช้ nested routes
+            GoRoute(
+              path: 'profile',
+              builder: (context, state) => const ProfilePage(),
+            ),
+            GoRoute(
+              path: 'privacy-security',
+              builder: (context, state) => const PrivacySecurityPage(),
+            ),
+          ],
+        ),
         GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       ],
       redirect: (context, state) {

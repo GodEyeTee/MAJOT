@@ -44,13 +44,22 @@ Future<void> _initializeApp() async {
   }
 
   // Validate service role key
-  if (config.serviceRoleKey == null || config.serviceRoleKey!.isEmpty) {
-    LoggerService.warning(
-      'Service role key not configured, using anon key only',
-      'CONFIG',
+  if (config.serviceRoleKey != null && config.serviceRoleKey!.isNotEmpty) {
+    LoggerService.info(
+      'Service role key found, initializing service client',
+      'MAIN',
+    );
+
+    await SupabaseServiceClient().initialize(config);
+
+    // Test connection
+    final testOk = await SupabaseServiceClient().testConnection();
+    LoggerService.info(
+      'Service client test: ${testOk ? "PASSED" : "FAILED"}',
+      'MAIN',
     );
   } else {
-    LoggerService.info('Service role key configured', 'CONFIG');
+    LoggerService.warning('No service role key configured', 'MAIN');
   }
 
   // Initialize Supabase (regular client)

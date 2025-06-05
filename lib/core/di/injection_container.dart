@@ -33,6 +33,21 @@ import '../../features/theme/presentation/bloc/theme_bloc.dart';
 import '../../services/rbac/role_manager.dart';
 import '../../services/rbac/rbac_service.dart';
 
+// Profile feature
+import '../../features/profile/data/datasources/profile_remote_data_source.dart';
+import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/domain/repositories/profile_repository.dart';
+import '../../features/profile/domain/usecases/get_profile.dart';
+import '../../features/profile/domain/usecases/update_profile.dart';
+import '../../features/profile/presentation/bloc/profile_bloc.dart';
+
+// Privacy & Security feature
+import '../../features/privacy_security/data/datasources/security_remote_data_source.dart';
+import '../../features/privacy_security/data/repositories/security_repository_impl.dart';
+import '../../features/privacy_security/domain/repositories/security_repository.dart';
+import '../../features/privacy_security/domain/usecases/get_security_settings.dart';
+import '../../features/privacy_security/presentation/bloc/security_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -40,6 +55,49 @@ Future<void> init() async {
   await _registerCoreServices();
   await _registerAuthFeature();
   await _registerThemeFeature();
+  await _registerProfileFeature();
+  await _registerSecurityFeature();
+}
+
+Future<void> _registerSecurityFeature() async {
+  // Data sources
+  sl.registerLazySingleton<SecurityRemoteDataSource>(
+    () => SecurityRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+
+  // Repository
+  sl.registerLazySingleton<SecurityRepository>(
+    () => SecurityRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetSecuritySettings(sl()));
+
+  // BLoC
+  sl.registerFactory(
+    () => SecurityBloc(getSecuritySettingsUseCase: sl(), repository: sl()),
+  );
+}
+
+Future<void> _registerProfileFeature() async {
+  // Data sources - ไม่ต้องส่ง parameter เพราะใช้ singleton
+  sl.registerLazySingleton<ProfileRemoteDataSource>(
+    () => ProfileRemoteDataSourceImpl(),
+  );
+
+  // Repository
+  sl.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetProfile(sl()));
+  sl.registerLazySingleton(() => UpdateProfile(sl()));
+
+  // BLoC
+  sl.registerFactory(
+    () => ProfileBloc(getProfileUseCase: sl(), updateProfileUseCase: sl()),
+  );
 }
 
 Future<void> _registerExternalDependencies() async {

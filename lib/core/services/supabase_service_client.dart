@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../utils/app_config_loader.dart';
 import 'logger_service.dart';
 
@@ -13,16 +12,24 @@ class SupabaseServiceClient {
   bool _isInitialized = false;
 
   Future<void> initialize(AppConfig config) async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      LoggerService.info(
+        'Service client already initialized',
+        'SUPABASE_SERVICE',
+      );
+      return;
+    }
 
     try {
-      if (config.serviceRoleKey == null) {
+      if (config.serviceRoleKey == null || config.serviceRoleKey!.isEmpty) {
         throw Exception('Service role key not configured');
       }
 
+      // สร้าง service client ด้วย service role key
       _serviceClient = SupabaseClient(
         config.supabaseUrl,
         config.serviceRoleKey!,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
       );
 
       _isInitialized = true;
@@ -56,6 +63,7 @@ class SupabaseServiceClient {
     try {
       if (!_isInitialized) return false;
 
+      // Test query - service role should bypass RLS
       await _serviceClient!.from('users').select('id').limit(1);
 
       LoggerService.info(
@@ -64,9 +72,10 @@ class SupabaseServiceClient {
       );
       return true;
     } catch (e) {
-      LoggerService.warning(
+      LoggerService.error(
         'Service client connection test failed',
         'SUPABASE_SERVICE',
+        e,
       );
       return false;
     }

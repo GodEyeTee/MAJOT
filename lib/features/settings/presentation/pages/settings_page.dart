@@ -6,6 +6,7 @@ import '../../../theme/presentation/widgets/theme_selector.dart';
 import '../../../../core/themes/app_spacing.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/app_colors.dart';
+import 'package:go_router/go_router.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -46,18 +47,14 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.person,
                 title: 'Profile',
                 subtitle: 'Manage your account information',
-                onTap: () {
-                  // Navigate to profile settings
-                },
+                onTap: () => context.push('/profile'),
               ),
               _buildSettingTile(
                 context,
                 icon: Icons.security,
                 title: 'Privacy & Security',
                 subtitle: 'Manage your privacy settings',
-                onTap: () {
-                  // Navigate to privacy settings
-                },
+                onTap: () => context.push('/privacy-security'),
               ),
             ],
           ),
