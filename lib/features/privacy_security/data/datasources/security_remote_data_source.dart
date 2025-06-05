@@ -140,7 +140,7 @@ class SecurityRemoteDataSourceImpl implements SecurityRemoteDataSource {
       }
 
       final history =
-          (response as List)
+          (response)
               .map((e) {
                 // Handle timestamp field name difference
                 final Map<String, dynamic> historyItem =

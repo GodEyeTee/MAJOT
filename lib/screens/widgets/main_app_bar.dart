@@ -135,7 +135,6 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
         return 'medium';
       case UserRole.user:
       case UserRole.guest:
-      default:
         return 'standard';
     }
   }

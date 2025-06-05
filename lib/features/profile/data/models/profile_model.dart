@@ -21,10 +21,6 @@ class ProfileModel extends Profile {
     // ข้อมูลจาก users table (ถ้ามี join)
     final userData = json['users'] ?? {};
 
-    // Debug print
-    print('Profile JSON: $json');
-    print('User Data: $userData');
-
     return ProfileModel(
       userId: profileData['user_id'] ?? '',
       // ดึงข้อมูลจาก users table

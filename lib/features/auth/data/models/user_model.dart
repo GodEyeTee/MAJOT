@@ -8,6 +8,7 @@ import '../../../../core/services/logger_service.dart';
 class UserModel extends User {
   final String? photoURL;
   final bool emailVerified;
+  @override
   final String? phoneNumber;
   final DateTime? createdAt;
   final DateTime? updatedAt;
