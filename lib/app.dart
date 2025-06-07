@@ -9,7 +9,6 @@ import 'package:my_test_app/features/profile/presentation/pages/profile_page.dar
 // Add scanner imports
 import 'features/ocr_scanner/presentation/pages/scanner_page_wrapper.dart';
 import 'features/ocr_scanner/presentation/pages/simple_camera_test.dart';
-import 'features/ocr_scanner/presentation/pages/test_camera_navigation.dart';
 
 // Hotel imports
 import 'features/hotel/presentation/bloc/room/room_bloc.dart';

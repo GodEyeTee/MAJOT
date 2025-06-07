@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/themes/app_spacing.dart';
-import '../../../../core/themes/app_theme.dart';
+import '../../../../core/themes/theme_extensions.dart';
 import '../../../../services/rbac/permission_guard.dart';
 import '../../domain/entities/room.dart';
 import '../../domain/entities/tenant.dart';
@@ -404,7 +404,6 @@ class _RoomDetailPageState extends State<RoomDetailPage> {
   }
 
   Widget _buildMaintenanceSection(BuildContext context, Room room) {
-    // TODO: Load maintenance requests
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

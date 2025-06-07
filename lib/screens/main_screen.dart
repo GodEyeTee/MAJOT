@@ -8,7 +8,7 @@ import '../features/home/presentation/pages/home_page.dart';
 import '../features/wallet/presentation/pages/wallet_page.dart';
 import '../features/analytics/presentation/pages/analytics_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
-import '../features/hotel/presentation/pages/hotel_search_page.dart';
+import '../features/hotel/presentation/pages/room_list_page.dart';
 import '../features/shopping/presentation/pages/products_page.dart';
 import '../features/ocr_scanner/presentation/pages/scanner_page_wrapper.dart';
 import '../services/rbac/rbac_service.dart';
@@ -56,7 +56,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         icon: Icons.hotel_outlined,
         activeIcon: Icons.hotel,
         label: 'Hotels',
-        page: const HotelSearchPage(),
+        page: const RoomListPage(),
         permissions: ['book_hotels'],
         category: NavigationCategory.business,
         priority: 90,
@@ -341,10 +341,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       child: IndexedStack(
         index: _selectedIndex,
         children:
-            _visibleNavigationItems.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-
+            _visibleNavigationItems.map((item) {
               // Add key to scanner to force recreation
               if (item.id == 'scanner') {
                 return KeyedSubtree(
