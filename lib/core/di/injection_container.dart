@@ -50,6 +50,26 @@ import '../../features/privacy_security/domain/repositories/security_repository.
 import '../../features/privacy_security/domain/usecases/get_security_settings.dart';
 import '../../features/privacy_security/presentation/bloc/security_bloc.dart';
 
+// Hotel feature
+import '../../features/hotel/data/datasources/room_remote_data_source.dart';
+import '../../features/hotel/data/datasources/tenant_remote_data_source.dart';
+import '../../features/hotel/data/datasources/meter_remote_data_source.dart';
+import '../../features/hotel/data/datasources/bill_remote_data_source.dart';
+import '../../features/hotel/data/repositories/room_repository_impl.dart';
+import '../../features/hotel/data/repositories/tenant_repository_impl.dart';
+import '../../features/hotel/data/repositories/meter_repository_impl.dart';
+import '../../features/hotel/data/repositories/bill_repository_impl.dart';
+import '../../features/hotel/domain/repositories/room_repository.dart';
+import '../../features/hotel/domain/repositories/tenant_repository.dart';
+import '../../features/hotel/domain/repositories/meter_repository.dart';
+import '../../features/hotel/domain/repositories/bill_repository.dart';
+import '../../features/hotel/domain/usecases/room/get_rooms.dart';
+import '../../features/hotel/domain/usecases/room/create_room.dart';
+import '../../features/hotel/domain/usecases/meter/get_latest_reading.dart';
+import '../../features/hotel/domain/usecases/meter/save_meter_reading.dart';
+import '../../features/hotel/presentation/bloc/room/room_bloc.dart';
+import '../../features/hotel/presentation/bloc/meter/meter_bloc.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -60,6 +80,7 @@ Future<void> init() async {
   await _registerProfileFeature();
   await _registerSecurityFeature();
   await _registerScannerFeature();
+  await _registerHotelFeature();
 }
 
 Future<void> _registerSecurityFeature() async {
@@ -213,4 +234,48 @@ Future<void> _registerThemeFeature() async {
 Future<void> _registerScannerFeature() async {
   // BLoC
   sl.registerFactory(() => ScannerBloc());
+}
+
+Future<void> _registerHotelFeature() async {
+  // Data sources
+  sl.registerLazySingleton<RoomRemoteDataSource>(
+    () => RoomRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+  sl.registerLazySingleton<TenantRemoteDataSource>(
+    () => TenantRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+  sl.registerLazySingleton<MeterRemoteDataSource>(
+    () => MeterRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+  sl.registerLazySingleton<BillRemoteDataSource>(
+    () => BillRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<RoomRepository>(
+    () => RoomRepositoryImpl(remoteDataSource: sl()),
+  );
+  sl.registerLazySingleton<TenantRepository>(
+    () => TenantRepositoryImpl(remoteDataSource: sl()),
+  );
+  sl.registerLazySingleton<MeterRepository>(
+    () => MeterRepositoryImpl(remoteDataSource: sl()),
+  );
+  sl.registerLazySingleton<BillRepository>(
+    () => BillRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // Use cases - Room
+  sl.registerLazySingleton(() => GetRooms(sl()));
+  sl.registerLazySingleton(() => CreateRoom(sl()));
+
+  // Use cases - Meter
+  sl.registerLazySingleton(() => GetLatestReading(sl()));
+  sl.registerLazySingleton(() => SaveMeterReading(sl()));
+
+  // BLoCs
+  sl.registerFactory(() => RoomBloc(getRooms: sl(), createRoom: sl()));
+  sl.registerFactory(
+    () => MeterBloc(getLatestReading: sl(), saveMeterReading: sl()),
+  );
 }

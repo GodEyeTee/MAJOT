@@ -11,6 +11,13 @@ import 'features/ocr_scanner/presentation/pages/scanner_page_wrapper.dart';
 import 'features/ocr_scanner/presentation/pages/simple_camera_test.dart';
 import 'features/ocr_scanner/presentation/pages/test_camera_navigation.dart';
 
+// Hotel imports
+import 'features/hotel/presentation/bloc/room/room_bloc.dart';
+import 'features/hotel/presentation/bloc/meter/meter_bloc.dart';
+import 'features/hotel/presentation/pages/room_list_page.dart';
+import 'features/hotel/presentation/pages/room_detail_page.dart';
+import 'features/hotel/presentation/pages/meter_reading_page.dart';
+
 import 'core/di/injection_container.dart' as di;
 import 'core/themes/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -47,6 +54,10 @@ class _AppState extends State<App> {
         BlocProvider<ThemeBloc>(create: (context) => di.sl<ThemeBloc>()),
         BlocProvider<ProfileBloc>(create: (context) => di.sl<ProfileBloc>()),
         BlocProvider<SecurityBloc>(create: (context) => di.sl<SecurityBloc>()),
+        BlocProvider<RoomBloc>(
+          create: (context) => di.sl<RoomBloc>()..add(LoadRoomsEvent()),
+        ),
+        BlocProvider<MeterBloc>(create: (context) => di.sl<MeterBloc>()),
       ],
       child: Builder(
         builder: (context) {
@@ -112,6 +123,29 @@ class _AppState extends State<App> {
             GoRoute(
               path: 'camera-test',
               builder: (context, state) => const SimpleCameraTest(),
+            ),
+            // Hotel routes
+            GoRoute(
+              path: 'hotel',
+              builder: (context, state) => const RoomListPage(),
+              routes: [
+                GoRoute(
+                  path: 'rooms/:id',
+                  builder: (context, state) {
+                    final roomId = state.pathParameters['id']!;
+                    return RoomDetailPage(roomId: roomId);
+                  },
+                  routes: [
+                    GoRoute(
+                      path: 'meter',
+                      builder: (context, state) {
+                        final roomId = state.pathParameters['id']!;
+                        return MeterReadingPage(roomId: roomId);
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
