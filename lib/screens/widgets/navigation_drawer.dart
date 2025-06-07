@@ -1,8 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../features/auth/domain/entities/user.dart';
 import '../../services/rbac/permission_guard.dart';
 import '../main_screen.dart';
+
+// Helper function to create permission-guarded menu items
+Widget createPermissionMenuItem({
+  required String permissionId,
+  required String title,
+  required IconData icon,
+  required String subtitle,
+  required VoidCallback onTap,
+}) {
+  return PermissionGuard(
+    permissionId: permissionId,
+    child: ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      onTap: onTap,
+    ),
+    fallback: ListTile(
+      leading: Icon(icon, color: Colors.grey),
+      title: Text(title, style: const TextStyle(color: Colors.grey)),
+      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
+      onTap: () {
+        // Show permission required message
+      },
+      enabled: false,
+    ),
+  );
+}
 
 class NavigationDrawer extends StatelessWidget {
   final User? user;
@@ -62,6 +91,18 @@ class NavigationDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).pop();
                       _showUserManagement(context);
+                    },
+                  ),
+                ]),
+                const Divider(),
+                _buildDrawerSection(context, 'Debug Tools', [
+                  ListTile(
+                    leading: const Icon(Icons.camera_alt, color: Colors.blue),
+                    title: const Text('Camera Test'),
+                    subtitle: const Text('Debug camera issues'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/camera-test');
                     },
                   ),
                 ]),

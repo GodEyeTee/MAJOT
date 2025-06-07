@@ -8,9 +8,9 @@ import '../features/home/presentation/pages/home_page.dart';
 import '../features/wallet/presentation/pages/wallet_page.dart';
 import '../features/analytics/presentation/pages/analytics_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
-import '../features/hotel_booking/presentation/pages/hotel_search_page.dart';
+import '../features/hotel/presentation/pages/hotel_search_page.dart';
 import '../features/shopping/presentation/pages/products_page.dart';
-import '../features/ocr_scanner/presentation/pages/scanner_page.dart';
+import '../features/ocr_scanner/presentation/pages/scanner_page_wrapper.dart';
 import '../services/rbac/rbac_service.dart';
 import '../services/rbac/permission_guard.dart';
 import '../core/services/logger_service.dart';
@@ -78,7 +78,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         icon: Icons.document_scanner_outlined,
         activeIcon: Icons.document_scanner,
         label: 'Scanner',
-        page: const ScannerPage(),
+        page: const ScannerPageWrapper(), // Use wrapper instead
         permissions: ['use_scanner'],
         category: NavigationCategory.tools,
         priority: 70,
@@ -331,6 +331,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildBody() {
     final currentItem = _visibleNavigationItems[_selectedIndex];
 
+    // Force recreate scanner page when selected
     return PermissionGuard(
       permissionId:
           currentItem.permissions.isNotEmpty
@@ -339,7 +340,21 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       fallback: _buildAccessDeniedPage(currentItem),
       child: IndexedStack(
         index: _selectedIndex,
-        children: _visibleNavigationItems.map((item) => item.page).toList(),
+        children:
+            _visibleNavigationItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+
+              // Add key to scanner to force recreation
+              if (item.id == 'scanner') {
+                return KeyedSubtree(
+                  key: ValueKey('scanner_$_selectedIndex'),
+                  child: item.page,
+                );
+              }
+
+              return item.page;
+            }).toList(),
       ),
     );
   }

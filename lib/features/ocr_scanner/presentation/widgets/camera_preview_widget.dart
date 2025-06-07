@@ -1,4 +1,3 @@
-// camera_preview_widget.dart
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 
@@ -20,10 +19,12 @@ class CameraPreviewWidget extends StatelessWidget {
       );
     }
 
+    final size = MediaQuery.of(context).size;
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Camera Preview
+        // Camera Preview - Simple implementation to reduce buffer usage
         Center(
           child: AspectRatio(
             aspectRatio: controller.value.aspectRatio,
@@ -32,7 +33,9 @@ class CameraPreviewWidget extends StatelessWidget {
         ),
 
         // Scan Overlay
-        CustomPaint(painter: ScanOverlayPainter(), child: Container()),
+        IgnorePointer(
+          child: CustomPaint(size: size, painter: ScanOverlayPainter()),
+        ),
       ],
     );
   }
@@ -43,7 +46,7 @@ class ScanOverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint =
         Paint()
-          ..color = Colors.black54
+          ..color = Colors.black.withOpacity(0.5)
           ..style = PaintingStyle.fill;
 
     final framePaint =
@@ -56,26 +59,18 @@ class ScanOverlayPainter extends CustomPainter {
         Paint()
           ..color = Colors.yellow
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 6.0
+          ..strokeWidth = 5.0
           ..strokeCap = StrokeCap.round;
 
     // Calculate frame dimensions
-    final double frameWidth = size.width * 0.85;
-    final double frameHeight = size.height * 0.5;
-    final double left = (size.width - frameWidth) / 2;
-    final double top = (size.height - frameHeight) / 2;
-    final double right = left + frameWidth;
-    final double bottom = top + frameHeight;
+    final frameRect = ScanFrameCalculator.getFrameRect(size);
 
     // Draw dark overlay with cutout
     final Path path =
         Path()
           ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
           ..addRRect(
-            RRect.fromRectAndRadius(
-              Rect.fromLTRB(left, top, right, bottom),
-              const Radius.circular(12),
-            ),
+            RRect.fromRectAndRadius(frameRect, const Radius.circular(12)),
           )
           ..fillType = PathFillType.evenOdd;
 
@@ -83,27 +78,21 @@ class ScanOverlayPainter extends CustomPainter {
 
     // Draw frame border
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(left, top, right, bottom),
-        const Radius.circular(12),
-      ),
+      RRect.fromRectAndRadius(frameRect, const Radius.circular(12)),
       framePaint,
     );
 
     // Draw corner accents
-    const double cornerLength = 30;
+    const double cornerLength = 25;
+    final left = frameRect.left;
+    final top = frameRect.top;
+    final right = frameRect.right;
+    final bottom = frameRect.bottom;
 
-    // Top-left corner
+    // Top-left
     canvas.drawLine(
       Offset(left, top + cornerLength),
       Offset(left, top + 12),
-      cornerPaint,
-    );
-    canvas.drawArc(
-      Rect.fromLTWH(left, top, 24, 24),
-      3.14159, // π
-      1.5708, // π/2
-      false,
       cornerPaint,
     );
     canvas.drawLine(
@@ -112,17 +101,10 @@ class ScanOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Top-right corner
+    // Top-right
     canvas.drawLine(
       Offset(right - cornerLength, top),
       Offset(right - 12, top),
-      cornerPaint,
-    );
-    canvas.drawArc(
-      Rect.fromLTWH(right - 24, top, 24, 24),
-      -1.5708, // -π/2
-      1.5708, // π/2
-      false,
       cornerPaint,
     );
     canvas.drawLine(
@@ -131,17 +113,10 @@ class ScanOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Bottom-right corner
+    // Bottom-right
     canvas.drawLine(
       Offset(right, bottom - cornerLength),
       Offset(right, bottom - 12),
-      cornerPaint,
-    );
-    canvas.drawArc(
-      Rect.fromLTWH(right - 24, bottom - 24, 24, 24),
-      0,
-      1.5708, // π/2
-      false,
       cornerPaint,
     );
     canvas.drawLine(
@@ -150,17 +125,10 @@ class ScanOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Bottom-left corner
+    // Bottom-left
     canvas.drawLine(
       Offset(left + cornerLength, bottom),
       Offset(left + 12, bottom),
-      cornerPaint,
-    );
-    canvas.drawArc(
-      Rect.fromLTWH(left, bottom - 24, 24, 24),
-      1.5708, // π/2
-      1.5708, // π/2
-      false,
       cornerPaint,
     );
     canvas.drawLine(
@@ -168,31 +136,20 @@ class ScanOverlayPainter extends CustomPainter {
       Offset(left, bottom - cornerLength),
       cornerPaint,
     );
-
-    // Draw scanning animation lines
-    final double scanLineY = top + (frameHeight * 0.5);
-    final scanLinePaint =
-        Paint()
-          ..color = Colors.yellow.withValues(alpha: 0.5)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0;
-
-    canvas.drawLine(
-      Offset(left + 20, scanLineY),
-      Offset(right - 20, scanLineY),
-      scanLinePaint,
-    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Utility class to get frame coordinates for cropping
+// Utility class for frame calculations
 class ScanFrameCalculator {
+  static const double _frameWidthRatio = 0.85;
+  static const double _frameHeightRatio = 0.5;
+
   static Rect getFrameRect(Size screenSize) {
-    final double frameWidth = screenSize.width * 0.85;
-    final double frameHeight = screenSize.height * 0.5;
+    final double frameWidth = screenSize.width * _frameWidthRatio;
+    final double frameHeight = screenSize.height * _frameHeightRatio;
     final double left = (screenSize.width - frameWidth) / 2;
     final double top = (screenSize.height - frameHeight) / 2;
 
@@ -205,7 +162,7 @@ class ScanFrameCalculator {
   ) {
     final frameRect = getFrameRect(screenSize);
 
-    // Calculate scale factors
+    // Simple scaling calculation
     final double scaleX = imageSize.width / screenSize.width;
     final double scaleY = imageSize.height / screenSize.height;
 

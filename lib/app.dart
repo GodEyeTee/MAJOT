@@ -6,6 +6,11 @@ import 'features/privacy_security/presentation/bloc/security_bloc.dart';
 import 'package:my_test_app/features/profile/presentation/bloc/profile_bloc.dart';
 import 'package:my_test_app/features/profile/presentation/pages/profile_page.dart';
 
+// Add scanner imports
+import 'features/ocr_scanner/presentation/pages/scanner_page_wrapper.dart';
+import 'features/ocr_scanner/presentation/pages/simple_camera_test.dart';
+import 'features/ocr_scanner/presentation/pages/test_camera_navigation.dart';
+
 import 'core/di/injection_container.dart' as di;
 import 'core/themes/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -90,7 +95,7 @@ class _AppState extends State<App> {
           path: '/',
           builder: (context, state) => const MainScreen(),
           routes: [
-            // ใช้ nested routes
+            // Existing nested routes
             GoRoute(
               path: 'profile',
               builder: (context, state) => const ProfilePage(),
@@ -98,6 +103,15 @@ class _AppState extends State<App> {
             GoRoute(
               path: 'privacy-security',
               builder: (context, state) => const PrivacySecurityPage(),
+            ),
+            // Add scanner routes
+            GoRoute(
+              path: 'scanner',
+              builder: (context, state) => const ScannerPageWrapper(),
+            ),
+            GoRoute(
+              path: 'camera-test',
+              builder: (context, state) => const SimpleCameraTest(),
             ),
           ],
         ),

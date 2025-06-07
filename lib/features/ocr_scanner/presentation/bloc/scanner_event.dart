@@ -27,3 +27,9 @@ class ConfirmScanEvent extends ScannerEvent {
 class ToggleFlashEvent extends ScannerEvent {}
 
 class SwitchCameraEvent extends ScannerEvent {}
+
+class PauseCameraEvent extends ScannerEvent {}
+
+class ResumeCameraEvent extends ScannerEvent {}
+
+class DisposeCameraEvent extends ScannerEvent {}

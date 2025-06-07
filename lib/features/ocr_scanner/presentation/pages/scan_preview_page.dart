@@ -24,6 +24,7 @@ class ScanPreviewPage extends StatefulWidget {
 class _ScanPreviewPageState extends State<ScanPreviewPage> {
   String? _croppedImagePath;
   bool _isProcessing = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -31,16 +32,45 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
     _autoCropImage();
   }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _cleanupTempFiles();
+    super.dispose();
+  }
+
+  Future<void> _cleanupTempFiles() async {
+    // Clean up temporary cropped files
+    if (_croppedImagePath != null && _croppedImagePath != widget.imagePath) {
+      try {
+        final file = File(_croppedImagePath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
   Future<void> _autoCropImage() async {
+    if (_isDisposed) return;
+
     setState(() => _isProcessing = true);
 
     try {
       // Read the original image
       final originalFile = File(widget.imagePath);
+      if (!await originalFile.exists()) {
+        throw Exception('Image file not found');
+      }
+
       final bytes = await originalFile.readAsBytes();
+
+      // Decode image in isolate to prevent UI blocking
       final image = img.decodeImage(bytes);
 
-      if (image != null) {
+      if (image != null && mounted) {
         // Get screen size for frame calculation
         final screenSize = MediaQuery.of(context).size;
         final imageSize = Size(image.width.toDouble(), image.height.toDouble());
@@ -51,61 +81,125 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
           imageSize,
         );
 
+        // Validate coordinates
+        final cropX = coords['left']!.round().clamp(0, image.width - 1);
+        final cropY = coords['top']!.round().clamp(0, image.height - 1);
+        final cropWidth = coords['width']!.round().clamp(
+          1,
+          image.width - cropX,
+        );
+        final cropHeight = coords['height']!.round().clamp(
+          1,
+          image.height - cropY,
+        );
+
         // Crop the image
         final cropped = img.copyCrop(
           image,
-          x: coords['left']!.round(),
-          y: coords['top']!.round(),
-          width: coords['width']!.round(),
-          height: coords['height']!.round(),
+          x: cropX,
+          y: cropY,
+          width: cropWidth,
+          height: cropHeight,
         );
 
         // Save cropped image
         final tempDir = Directory.systemTemp;
-        final tempFile = File(
-          '${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        );
-        await tempFile.writeAsBytes(img.encodeJpg(cropped));
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final tempFile = File('${tempDir.path}/scan_cropped_$timestamp.jpg');
 
+        // Encode with reasonable quality to save memory
+        await tempFile.writeAsBytes(img.encodeJpg(cropped, quality: 85));
+
+        if (mounted && !_isDisposed) {
+          setState(() {
+            _croppedImagePath = tempFile.path;
+            _isProcessing = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Auto crop error: $e');
+      if (mounted && !_isDisposed) {
         setState(() {
-          _croppedImagePath = tempFile.path;
+          _croppedImagePath = widget.imagePath;
           _isProcessing = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _croppedImagePath = widget.imagePath;
-        _isProcessing = false;
-      });
     }
   }
 
   Future<void> _manualCrop() async {
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: _croppedImagePath ?? widget.imagePath,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Adjust Scan',
-          toolbarColor: Theme.of(context).primaryColor,
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-          activeControlsWidgetColor: Colors.yellow,
-        ),
-        IOSUiSettings(
-          title: 'Adjust Scan',
-          cancelButtonTitle: 'Cancel',
-          doneButtonTitle: 'Done',
-        ),
-      ],
-    );
+    if (_isProcessing || _isDisposed) return;
 
-    if (croppedFile != null) {
-      setState(() {
-        _croppedImagePath = croppedFile.path;
-      });
+    try {
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: _croppedImagePath ?? widget.imagePath,
+        maxWidth: 2000, // Limit max size to prevent memory issues
+        maxHeight: 2000,
+        compressQuality: 85,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Adjust Scan',
+            toolbarColor: Theme.of(context).primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+            activeControlsWidgetColor: Colors.yellow,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Adjust Scan',
+            cancelButtonTitle: 'Cancel',
+            doneButtonTitle: 'Done',
+            aspectRatioLockEnabled: false,
+            resetButtonHidden: false,
+            aspectRatioPickerButtonHidden: false,
+          ),
+        ],
+      );
+
+      if (croppedFile != null && mounted && !_isDisposed) {
+        // Clean up old cropped file
+        if (_croppedImagePath != null &&
+            _croppedImagePath != widget.imagePath) {
+          try {
+            await File(_croppedImagePath!).delete();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+
+        setState(() {
+          _croppedImagePath = croppedFile.path;
+        });
+      }
+    } catch (e) {
+      debugPrint('Manual crop error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to crop image'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _confirmImage() {
+    if (_isProcessing || _isDisposed) return;
+
+    final imagePath = _croppedImagePath ?? widget.imagePath;
+    widget.onConfirm(imagePath);
+    Navigator.of(context).pop();
+  }
+
+  void _retakeImage() {
+    if (_isDisposed) return;
+
+    widget.onRetake();
+    Navigator.of(context).pop();
   }
 
   @override
@@ -136,9 +230,9 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
                     ),
                   ),
                   IconButton(
-                    onPressed: _manualCrop,
+                    onPressed: _isProcessing ? null : _manualCrop,
                     icon: const Icon(Icons.crop),
-                    color: Colors.white,
+                    color: _isProcessing ? Colors.grey : Colors.white,
                     iconSize: 28,
                   ),
                 ],
@@ -149,30 +243,59 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
             Expanded(
               child: Container(
                 margin: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child:
-                      _isProcessing
-                          ? const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          )
-                          : Image.file(
-                            File(_croppedImagePath ?? widget.imagePath),
-                            fit: BoxFit.contain,
+                child:
+                    _isProcessing
+                        ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(color: Colors.white),
+                              SizedBox(height: 16),
+                              Text(
+                                'Processing image...',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
                           ),
-                ),
+                        )
+                        : Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              File(_croppedImagePath ?? widget.imagePath),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: Colors.red,
+                                        size: 64,
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'Failed to load image',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
               ),
             ),
 
@@ -180,7 +303,7 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
             Container(
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.8),
+                color: Colors.black.withValues(alpha: 0.9),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(24),
                 ),
@@ -190,15 +313,14 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
                   // Retake Button
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        widget.onRetake();
-                        Navigator.of(context).pop();
-                      },
+                      onPressed: _isProcessing ? null : _retakeImage,
                       icon: const Icon(Icons.refresh),
                       label: const Text('Retake'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white),
+                        side: BorderSide(
+                          color: _isProcessing ? Colors.grey : Colors.white,
+                        ),
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.md,
                         ),
@@ -213,19 +335,12 @@ class _ScanPreviewPageState extends State<ScanPreviewPage> {
                   Expanded(
                     flex: 2,
                     child: ElevatedButton.icon(
-                      onPressed:
-                          _isProcessing
-                              ? null
-                              : () {
-                                widget.onConfirm(
-                                  _croppedImagePath ?? widget.imagePath,
-                                );
-                                Navigator.of(context).pop();
-                              },
+                      onPressed: _isProcessing ? null : _confirmImage,
                       icon: const Icon(Icons.check),
                       label: const Text('Use Photo'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.yellow,
+                        backgroundColor:
+                            _isProcessing ? Colors.grey : Colors.yellow,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.md,

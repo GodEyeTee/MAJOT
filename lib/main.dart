@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 
 import 'core/utils/app_config_loader.dart';
 import 'core/services/supabase_service_client.dart';
@@ -11,6 +13,11 @@ import 'app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up BLoC observer for debugging
+  if (kDebugMode) {
+    Bloc.observer = SimpleBlocObserver();
+  }
 
   try {
     await _initializeApp();
@@ -180,4 +187,41 @@ Widget _buildErrorApp(String error) {
       ),
     ),
   );
+}
+
+// BLoC Observer for debugging
+class SimpleBlocObserver extends BlocObserver {
+  @override
+  void onCreate(BlocBase bloc) {
+    super.onCreate(bloc);
+    debugPrint('📦 onCreate -- ${bloc.runtimeType}');
+  }
+
+  @override
+  void onEvent(Bloc bloc, Object? event) {
+    super.onEvent(bloc, event);
+    debugPrint('📨 onEvent -- ${bloc.runtimeType}, $event');
+  }
+
+  @override
+  void onChange(BlocBase bloc, Change change) {
+    super.onChange(bloc, change);
+    debugPrint('🔄 onChange -- ${bloc.runtimeType}');
+    debugPrint('  Current: ${change.currentState.runtimeType}');
+    debugPrint('  Next: ${change.nextState.runtimeType}');
+  }
+
+  @override
+  void onError(BlocBase bloc, Object error, StackTrace stackTrace) {
+    super.onError(bloc, error, stackTrace);
+    debugPrint('❌ onError -- ${bloc.runtimeType}');
+    debugPrint('  Error: $error');
+    debugPrint('  StackTrace: $stackTrace');
+  }
+
+  @override
+  void onClose(BlocBase bloc) {
+    super.onClose(bloc);
+    debugPrint('🔒 onClose -- ${bloc.runtimeType}');
+  }
 }
