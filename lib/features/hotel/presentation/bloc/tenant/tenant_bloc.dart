@@ -24,6 +24,7 @@ class TenantBloc extends Bloc<TenantEvent, TenantState> {
     on<LoadTenantByRoomEvent>(_onLoadTenantByRoom);
     on<LoadTenantByUserEvent>(_onLoadTenantByUser);
     on<CreateTenantEvent>(_onCreateTenant);
+    on<CreateTenantWithUserEvent>(_onCreateTenantWithUser);
     on<EndTenancyEvent>(_onEndTenancy);
   }
 
@@ -67,6 +68,26 @@ class TenantBloc extends Bloc<TenantEvent, TenantState> {
       (failure) => emit(TenantError(failure.message)),
       (tenant) => emit(TenantSaved(tenant)),
     );
+  }
+
+  Future<void> _onCreateTenantWithUser(
+    CreateTenantWithUserEvent event,
+    Emitter<TenantState> emit,
+  ) async {
+    emit(TenantSaving());
+
+    try {
+      final result = await createTenant(
+        CreateTenantParams(tenant: event.tenant),
+      );
+
+      result.fold(
+        (failure) => emit(TenantError(failure.message)),
+        (tenant) => emit(TenantSaved(tenant)),
+      );
+    } catch (e) {
+      emit(TenantError(e.toString()));
+    }
   }
 
   Future<void> _onEndTenancy(

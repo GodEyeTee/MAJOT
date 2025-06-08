@@ -17,6 +17,8 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
     on<LoadRoomsEvent>(_onLoadRooms);
     on<LoadRoomEvent>(_onLoadRoom);
     on<CreateRoomEvent>(_onCreateRoom);
+    on<UpdateRoomEvent>(_onUpdateRoom);
+    on<DeleteRoomEvent>(_onDeleteRoom);
     on<FilterRoomsByStatusEvent>(_onFilterRoomsByStatus);
   }
 
@@ -25,23 +27,22 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
     Emitter<RoomState> emit,
   ) async {
     emit(RoomLoading());
+
     final result = await getRooms(NoParams());
+
     result.fold(
       (failure) => emit(RoomError(failure.message)),
-      (rooms) => emit(RoomLoaded(rooms, allRooms: rooms)),
+      (rooms) => emit(RoomLoaded(rooms)),
     );
   }
 
-  // เพิ่ม handler นี้
   Future<void> _onLoadRoom(LoadRoomEvent event, Emitter<RoomState> emit) async {
     emit(RoomLoading());
 
     try {
-      // โหลดห้องทั้งหมดก่อน
       final result = await getRooms(NoParams());
 
       result.fold((failure) => emit(RoomError(failure.message)), (rooms) {
-        // หาห้องที่ต้องการ
         final room = rooms.firstWhere(
           (r) => r.id == event.roomId,
           orElse: () => throw Exception('Room not found'),
@@ -66,6 +67,22 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
     });
   }
 
+  Future<void> _onUpdateRoom(
+    UpdateRoomEvent event,
+    Emitter<RoomState> emit,
+  ) async {
+    // TODO: Implement update room
+    emit(RoomError('Update room not implemented'));
+  }
+
+  Future<void> _onDeleteRoom(
+    DeleteRoomEvent event,
+    Emitter<RoomState> emit,
+  ) async {
+    // TODO: Implement delete room
+    emit(RoomError('Delete room not implemented'));
+  }
+
   Future<void> _onFilterRoomsByStatus(
     FilterRoomsByStatusEvent event,
     Emitter<RoomState> emit,
@@ -74,15 +91,15 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
       final currentState = state as RoomLoaded;
       final filteredRooms =
           event.status == null
-              ? currentState.rooms
-              : currentState.rooms
+              ? currentState.allRooms ?? currentState.rooms
+              : (currentState.allRooms ?? currentState.rooms)
                   .where((room) => room.status == event.status)
                   .toList();
 
       emit(
         RoomLoaded(
           filteredRooms,
-          allRooms: currentState.rooms,
+          allRooms: currentState.allRooms ?? currentState.rooms,
           selectedStatus: event.status,
         ),
       );

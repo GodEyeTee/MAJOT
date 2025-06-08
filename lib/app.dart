@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_test_app/features/hotel/presentation/pages/create_tenant_page.dart';
 import 'package:my_test_app/features/privacy_security/presentation/pages/privacy_security_page.dart';
 import 'features/privacy_security/presentation/bloc/security_bloc.dart';
 import 'package:my_test_app/features/profile/presentation/bloc/profile_bloc.dart';
@@ -147,6 +148,15 @@ class _AppState extends State<App> {
                       builder: (context, state) {
                         final roomId = state.pathParameters['id']!;
                         return MeterReadingPage(roomId: roomId);
+                      },
+                    ),
+                    GoRoute(
+                      path: 'create-tenant',
+                      builder: (context, state) {
+                        final roomId = state.pathParameters['id']!;
+                        return CreateTenantPage(
+                          roomId: roomId,
+                        ); // ต้องสร้างหน้านี้
                       },
                     ),
                   ],
