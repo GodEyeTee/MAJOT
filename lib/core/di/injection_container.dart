@@ -67,8 +67,13 @@ import '../../features/hotel/domain/usecases/room/get_rooms.dart';
 import '../../features/hotel/domain/usecases/room/create_room.dart';
 import '../../features/hotel/domain/usecases/meter/get_latest_reading.dart';
 import '../../features/hotel/domain/usecases/meter/save_meter_reading.dart';
+import '../../features/hotel/domain/usecases/tenant/get_tenant_by_room.dart';
+import '../../features/hotel/domain/usecases/tenant/get_tenant_by_user.dart';
+import '../../features/hotel/domain/usecases/tenant/create_tenant.dart';
+import '../../features/hotel/domain/usecases/tenant/end_tenancy.dart';
 import '../../features/hotel/presentation/bloc/room/room_bloc.dart';
 import '../../features/hotel/presentation/bloc/meter/meter_bloc.dart';
+import '../../features/hotel/presentation/bloc/tenant/tenant_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -273,9 +278,23 @@ Future<void> _registerHotelFeature() async {
   sl.registerLazySingleton(() => GetLatestReading(sl()));
   sl.registerLazySingleton(() => SaveMeterReading(sl()));
 
+  // Use cases - Tenant
+  sl.registerLazySingleton(() => GetTenantByRoom(sl()));
+  sl.registerLazySingleton(() => GetTenantByUser(sl()));
+  sl.registerLazySingleton(() => CreateTenant(sl()));
+  sl.registerLazySingleton(() => EndTenancy(sl()));
+
   // BLoCs
   sl.registerFactory(() => RoomBloc(getRooms: sl(), createRoom: sl()));
   sl.registerFactory(
     () => MeterBloc(getLatestReading: sl(), saveMeterReading: sl()),
+  );
+  sl.registerFactory(
+    () => TenantBloc(
+      getTenantByRoom: sl(),
+      getTenantByUser: sl(),
+      createTenant: sl(),
+      endTenancy: sl(),
+    ),
   );
 }

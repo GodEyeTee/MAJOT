@@ -15,6 +15,7 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
   RoomBloc({required this.getRooms, required this.createRoom})
     : super(RoomInitial()) {
     on<LoadRoomsEvent>(_onLoadRooms);
+    on<LoadRoomEvent>(_onLoadRoom);
     on<CreateRoomEvent>(_onCreateRoom);
     on<FilterRoomsByStatusEvent>(_onFilterRoomsByStatus);
   }
@@ -24,13 +25,32 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
     Emitter<RoomState> emit,
   ) async {
     emit(RoomLoading());
-
     final result = await getRooms(NoParams());
-
     result.fold(
       (failure) => emit(RoomError(failure.message)),
-      (rooms) => emit(RoomLoaded(rooms)),
+      (rooms) => emit(RoomLoaded(rooms, allRooms: rooms)),
     );
+  }
+
+  // เพิ่ม handler นี้
+  Future<void> _onLoadRoom(LoadRoomEvent event, Emitter<RoomState> emit) async {
+    emit(RoomLoading());
+
+    try {
+      // โหลดห้องทั้งหมดก่อน
+      final result = await getRooms(NoParams());
+
+      result.fold((failure) => emit(RoomError(failure.message)), (rooms) {
+        // หาห้องที่ต้องการ
+        final room = rooms.firstWhere(
+          (r) => r.id == event.roomId,
+          orElse: () => throw Exception('Room not found'),
+        );
+        emit(RoomDetailLoaded(room));
+      });
+    } catch (e) {
+      emit(RoomError(e.toString()));
+    }
   }
 
   Future<void> _onCreateRoom(

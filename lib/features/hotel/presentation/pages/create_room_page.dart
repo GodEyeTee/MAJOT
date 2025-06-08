@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_test_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:my_test_app/features/auth/presentation/bloc/auth_state.dart';
 import '../../../../core/themes/app_spacing.dart';
 import '../../domain/entities/room.dart';
 import '../bloc/room/room_bloc.dart';
@@ -190,6 +192,9 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
 
   void _createRoom() {
     if (_formKey.currentState!.validate()) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is! Authenticated) return;
+
       final room = Room(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         roomNumber: _roomNumberController.text,
@@ -205,6 +210,7 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
                 ? _descriptionController.text
                 : null,
         status: RoomStatus.available,
+        createdBy: authState.user!.id,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

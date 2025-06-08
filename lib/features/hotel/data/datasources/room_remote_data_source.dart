@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/services/supabase_service_client.dart';
 import '../models/room_model.dart';
 
 abstract class RoomRemoteDataSource {
@@ -16,10 +17,13 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
 
   RoomRemoteDataSourceImpl({required this.supabaseClient});
 
+  // ใช้ service client สำหรับ bypass RLS
+  SupabaseClient get _serviceClient => SupabaseServiceClient().client;
+
   @override
   Future<List<RoomModel>> getRooms() async {
     try {
-      final response = await supabaseClient
+      final response = await _serviceClient // เปลี่ยนจาก supabaseClient
           .from('rooms')
           .select()
           .order('room_number');
@@ -33,27 +37,32 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   }
 
   @override
-  Future<RoomModel> getRoom(String id) async {
-    try {
-      final response =
-          await supabaseClient.from('rooms').select().eq('id', id).single();
-
-      return RoomModel.fromJson(response);
-    } catch (e) {
-      throw ServerException('Failed to get room: $e');
-    }
-  }
-
-  @override
   Future<RoomModel> createRoom(RoomModel room) async {
     try {
       final data = room.toJson()..remove('id');
       final response =
-          await supabaseClient.from('rooms').insert(data).select().single();
+          await _serviceClient // เปลี่ยนจาก supabaseClient
+              .from('rooms')
+              .insert(data)
+              .select()
+              .single();
 
       return RoomModel.fromJson(response);
     } catch (e) {
       throw ServerException('Failed to create room: $e');
+    }
+  }
+
+  // เปลี่ยน method อื่นๆ ให้ใช้ _serviceClient เช่นกัน
+  @override
+  Future<RoomModel> getRoom(String id) async {
+    try {
+      final response =
+          await _serviceClient.from('rooms').select().eq('id', id).single();
+
+      return RoomModel.fromJson(response);
+    } catch (e) {
+      throw ServerException('Failed to get room: $e');
     }
   }
 
@@ -66,7 +75,7 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
             ..remove('created_by');
 
       final response =
-          await supabaseClient
+          await _serviceClient
               .from('rooms')
               .update(data)
               .eq('id', room.id)
@@ -82,7 +91,7 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   @override
   Future<void> deleteRoom(String id) async {
     try {
-      await supabaseClient.from('rooms').delete().eq('id', id);
+      await _serviceClient.from('rooms').delete().eq('id', id);
     } catch (e) {
       throw ServerException('Failed to delete room: $e');
     }
@@ -91,7 +100,7 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   @override
   Future<List<RoomModel>> getRoomsByStatus(String status) async {
     try {
-      final response = await supabaseClient
+      final response = await _serviceClient
           .from('rooms')
           .select()
           .eq('status', status)

@@ -13,6 +13,7 @@ import 'features/ocr_scanner/presentation/pages/simple_camera_test.dart';
 // Hotel imports
 import 'features/hotel/presentation/bloc/room/room_bloc.dart';
 import 'features/hotel/presentation/bloc/meter/meter_bloc.dart';
+import 'features/hotel/presentation/bloc/tenant/tenant_bloc.dart';
 import 'features/hotel/presentation/pages/room_list_page.dart';
 import 'features/hotel/presentation/pages/room_detail_page.dart';
 import 'features/hotel/presentation/pages/meter_reading_page.dart';
@@ -58,6 +59,7 @@ class _AppState extends State<App> {
           create: (context) => di.sl<RoomBloc>()..add(LoadRoomsEvent()),
         ),
         BlocProvider<MeterBloc>(create: (context) => di.sl<MeterBloc>()),
+        BlocProvider<TenantBloc>(create: (context) => di.sl<TenantBloc>()),
       ],
       child: Builder(
         builder: (context) {
