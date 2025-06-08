@@ -404,6 +404,7 @@ class _RoomDetailPageState extends State<RoomDetailPage> {
   }
 
   Widget _buildMaintenanceSection(BuildContext context, Room room) {
+    // TODO: Load maintenance requests
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

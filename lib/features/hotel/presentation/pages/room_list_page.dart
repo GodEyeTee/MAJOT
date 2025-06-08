@@ -14,17 +14,15 @@ class RoomListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('จัดการห้องพัก'),
-        actions: [
-          PermissionGuard(
-            permissionId: 'manage_rooms',
-            child: IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => context.push('/hotel/rooms/create'),
-            ),
-          ),
-        ],
+      appBar: AppBar(title: const Text('จัดการห้องพัก')),
+      floatingActionButton: PermissionGuard(
+        permissionId: 'manage_hotels',
+        child: FloatingActionButton(
+          onPressed: () => context.push('/hotel/create-room'),
+          backgroundColor: Theme.of(context).primaryColor,
+          child: const Icon(Icons.add, size: 28),
+          elevation: 8,
+        ),
       ),
       body: Column(
         children: [

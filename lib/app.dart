@@ -16,6 +16,7 @@ import 'features/hotel/presentation/bloc/meter/meter_bloc.dart';
 import 'features/hotel/presentation/pages/room_list_page.dart';
 import 'features/hotel/presentation/pages/room_detail_page.dart';
 import 'features/hotel/presentation/pages/meter_reading_page.dart';
+import 'features/hotel/presentation/pages/create_room_page.dart';
 
 import 'core/di/injection_container.dart' as di;
 import 'core/themes/app_theme.dart';
@@ -128,6 +129,10 @@ class _AppState extends State<App> {
               path: 'hotel',
               builder: (context, state) => const RoomListPage(),
               routes: [
+                GoRoute(
+                  path: 'create-room',
+                  builder: (context, state) => const CreateRoomPage(),
+                ),
                 GoRoute(
                   path: 'rooms/:id',
                   builder: (context, state) {
