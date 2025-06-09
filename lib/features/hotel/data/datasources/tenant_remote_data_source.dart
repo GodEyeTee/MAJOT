@@ -1,3 +1,4 @@
+import 'package:my_test_app/core/services/supabase_service_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../models/tenant_model.dart';
@@ -17,6 +18,7 @@ class TenantRemoteDataSourceImpl implements TenantRemoteDataSource {
   final SupabaseClient supabaseClient;
 
   TenantRemoteDataSourceImpl({required this.supabaseClient});
+  SupabaseClient get _serviceClient => SupabaseServiceClient().client;
 
   @override
   Future<List<TenantModel>> getTenants() async {
@@ -85,7 +87,11 @@ class TenantRemoteDataSourceImpl implements TenantRemoteDataSource {
     try {
       final data = tenant.toJson()..remove('id');
       final response =
-          await supabaseClient.from('tenants').insert(data).select().single();
+          await _serviceClient // เปลี่ยนจาก supabaseClient
+              .from('tenants')
+              .insert(data)
+              .select()
+              .single();
 
       return TenantModel.fromJson(response);
     } catch (e) {
