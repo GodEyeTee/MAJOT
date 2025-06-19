@@ -331,8 +331,9 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
         state is! CameraReady ||
-        !_isRearCamera)
+        !_isRearCamera) {
       return;
+    }
 
     try {
       _isFlashOn = !_isFlashOn;
@@ -362,8 +363,9 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
     if (_cameras == null ||
         _cameras!.length < 2 ||
         _isProcessingImage ||
-        _isCameraInitializing)
+        _isCameraInitializing) {
       return;
+    }
 
     _isCameraInitializing = true;
     _isRearCamera = !_isRearCamera;

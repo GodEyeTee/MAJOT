@@ -14,7 +14,7 @@ class _SimpleCameraTestState extends State<SimpleCameraTest> {
   CameraController? _controller;
   String _status = 'Initializing...';
   String _errorDetails = '';
-  List<String> _debugLogs = [];
+  final List<String> _debugLogs = [];
   PermissionStatus? _permissionStatus;
   List<CameraDescription>? _cameras;
   bool _isInitializing = false;
@@ -244,7 +244,7 @@ class _SimpleCameraTestState extends State<SimpleCameraTest> {
               Card(
                 child: Column(
                   children: [
-                    Container(
+                    SizedBox(
                       height: 300,
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(

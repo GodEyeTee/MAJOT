@@ -20,8 +20,8 @@ class RoomListPage extends StatelessWidget {
         child: FloatingActionButton(
           onPressed: () => context.push('/hotel/create-room'),
           backgroundColor: Theme.of(context).primaryColor,
-          child: const Icon(Icons.add, size: 28),
           elevation: 8,
+          child: const Icon(Icons.add, size: 28),
         ),
       ),
       body: Column(

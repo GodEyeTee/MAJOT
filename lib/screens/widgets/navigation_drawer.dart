@@ -15,12 +15,6 @@ Widget createPermissionMenuItem({
 }) {
   return PermissionGuard(
     permissionId: permissionId,
-    child: ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      onTap: onTap,
-    ),
     fallback: ListTile(
       leading: Icon(icon, color: Colors.grey),
       title: Text(title, style: const TextStyle(color: Colors.grey)),
@@ -29,6 +23,12 @@ Widget createPermissionMenuItem({
         // Show permission required message
       },
       enabled: false,
+    ),
+    child: ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      onTap: onTap,
     ),
   );
 }
