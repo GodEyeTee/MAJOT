@@ -46,9 +46,12 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
             ).showSnackBar(const SnackBar(content: Text('เพิ่มผู้เช่าสำเร็จ')));
             context.pop();
           } else if (state is TenantError) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
         child: Form(
@@ -194,6 +197,10 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
       final authState = context.read<AuthBloc>().state;
       if (authState is! Authenticated) return;
 
+      // Generate unique guest ID with timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final guestUserId = 'guest_${widget.roomId}_$timestamp';
+
       // เก็บข้อมูลผู้เช่าใน JSON
       final tenantInfo = {
         'name': _nameController.text,
@@ -204,9 +211,9 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
       };
 
       final tenant = Tenant(
-        id: '',
+        id: '', // จะถูก generate โดย database
         roomId: widget.roomId,
-        userId: authState.user!.id, // ใช้ ID ของ admin ที่สร้าง
+        userId: guestUserId, // ใช้ guest ID ที่ unique
         startDate: _startDate,
         depositAmount: double.parse(_depositController.text),
         depositPaidDate: DateTime.now(),
@@ -218,6 +225,7 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
       );
 
       print('Creating tenant for room: ${widget.roomId}');
+      print('Guest user ID: $guestUserId');
       print('Tenant info: ${jsonEncode(tenantInfo)}');
 
       context.read<TenantBloc>().add(CreateTenantEvent(tenant));

@@ -1,6 +1,165 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/entities/room.dart';
+import '../bloc/room/room_bloc.dart';
+import '../widgets/room_status_filter.dart';
 
+class RoomListPage extends StatelessWidget {
+  const RoomListPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'จัดการห้องพัก',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.black87),
+            onPressed: () => context.push('/hotel/create-room'),
+          ),
+        ],
+      ),
+      body: BlocBuilder<RoomBloc, RoomState>(
+        builder: (context, state) {
+          if (state is RoomLoading) {
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Colors.black54,
+                strokeWidth: 2,
+              ),
+            );
+          }
+
+          if (state is RoomLoaded) {
+            return Column(
+              children: [
+                // Status Filter
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: const RoomStatusFilter(),
+                ),
+
+                // Room List
+                Expanded(
+                  child:
+                      state.rooms.isEmpty
+                          ? _buildEmptyState(context)
+                          : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: state.rooms.length,
+                            itemBuilder: (context, index) {
+                              final room = state.rooms[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: MinimalRoomCard(
+                                  room: room,
+                                  onTap:
+                                      () => context.push(
+                                        '/hotel/rooms/${room.id}',
+                                      ),
+                                ),
+                              );
+                            },
+                          ),
+                ),
+              ],
+            );
+          }
+
+          if (state is RoomError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'เกิดข้อผิดพลาด',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      context.read<RoomBloc>().add(LoadRoomsEvent());
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('ลองอีกครั้ง'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black87,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.hotel_outlined, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            'ยังไม่มีห้องพัก',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'เริ่มเพิ่มห้องพักเพื่อจัดการ',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => context.push('/hotel/create-room'),
+            icon: const Icon(Icons.add),
+            label: const Text('เพิ่มห้องพัก'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Keep the MinimalRoomCard class as it was
 class MinimalRoomCard extends StatelessWidget {
   final Room room;
   final VoidCallback? onTap;

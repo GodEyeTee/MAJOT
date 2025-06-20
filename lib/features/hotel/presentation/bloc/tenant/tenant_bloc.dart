@@ -62,12 +62,39 @@ class TenantBloc extends Bloc<TenantEvent, TenantState> {
   ) async {
     emit(TenantSaving());
 
-    final result = await createTenant(CreateTenantParams(tenant: event.tenant));
+    try {
+      // ตรวจสอบว่ามี tenant ที่ active อยู่แล้วหรือไม่
+      final existingTenantResult = await getTenantByRoom(event.tenant.roomId);
 
-    result.fold(
-      (failure) => emit(TenantError(failure.message)),
-      (tenant) => emit(TenantSaved(tenant)),
-    );
+      existingTenantResult.fold(
+        (failure) {
+          // ไม่มี tenant เดิม หรือ error - ดำเนินการสร้างต่อ
+        },
+        (existingTenant) async {
+          if (existingTenant != null && existingTenant.isActive) {
+            // ถ้ามี tenant ที่ active อยู่ ให้ end tenancy ก่อน
+            await endTenancy(
+              EndTenancyParams(
+                tenantId: existingTenant.id,
+                endDate: DateTime.now(),
+              ),
+            );
+          }
+        },
+      );
+
+      // สร้าง tenant ใหม่
+      final result = await createTenant(
+        CreateTenantParams(tenant: event.tenant),
+      );
+
+      result.fold(
+        (failure) => emit(TenantError(failure.message)),
+        (tenant) => emit(TenantSaved(tenant)),
+      );
+    } catch (e) {
+      emit(TenantError(e.toString()));
+    }
   }
 
   Future<void> _onCreateTenantWithUser(
