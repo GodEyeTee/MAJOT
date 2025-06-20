@@ -16,6 +16,7 @@ import '../services/rbac/permission_guard.dart';
 import '../core/services/logger_service.dart';
 import 'widgets/navigation_drawer.dart' as custom_drawer;
 import 'widgets/main_app_bar.dart';
+import '../features/hotel/presentation/pages/room_list_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

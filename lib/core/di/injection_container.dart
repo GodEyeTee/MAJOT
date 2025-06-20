@@ -74,6 +74,11 @@ import '../../features/hotel/domain/usecases/tenant/end_tenancy.dart';
 import '../../features/hotel/presentation/bloc/room/room_bloc.dart';
 import '../../features/hotel/presentation/bloc/meter/meter_bloc.dart';
 import '../../features/hotel/presentation/bloc/tenant/tenant_bloc.dart';
+import '../../features/hotel/data/datasources/user_remote_data_source.dart';
+import '../../features/hotel/domain/usecases/bill/get_bills_by_tenant.dart';
+import '../../features/hotel/domain/usecases/bill/create_bill.dart';
+import '../../features/hotel/domain/usecases/bill/calculate_bill.dart';
+import '../../features/hotel/presentation/bloc/bill/bill_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -269,6 +274,14 @@ Future<void> _registerHotelFeature() async {
   sl.registerLazySingleton<BillRepository>(
     () => BillRepositoryImpl(remoteDataSource: sl()),
   );
+  sl.registerLazySingleton<UserRemoteDataSource>(
+    () => UserRemoteDataSourceImpl(supabaseClient: sl()),
+  );
+
+  //Use cases - Bill
+  sl.registerLazySingleton(() => GetBillsByTenant(sl()));
+  sl.registerLazySingleton(() => CreateBill(sl()));
+  sl.registerLazySingleton(() => CalculateBill(sl()));
 
   // Use cases - Room
   sl.registerLazySingleton(() => GetRooms(sl()));
@@ -296,5 +309,9 @@ Future<void> _registerHotelFeature() async {
       createTenant: sl(),
       endTenancy: sl(),
     ),
+  );
+  sl.registerFactory(
+    () =>
+        BillBloc(getBillsByTenant: sl(), createBill: sl(), calculateBill: sl()),
   );
 }

@@ -77,9 +77,23 @@ class TenantBloc extends Bloc<TenantEvent, TenantState> {
     emit(TenantSaving());
 
     try {
-      final result = await createTenant(
-        CreateTenantParams(tenant: event.tenant),
+      // ใช้ guest user ID โดยตรง ไม่ต้องสร้างในตาราง users
+      final tenant = Tenant(
+        id: event.tenant.id,
+        roomId: event.tenant.roomId,
+        userId: event.tenant.userId, // ใช้ guest ID ที่สร้างไว้
+        startDate: event.tenant.startDate,
+        endDate: event.tenant.endDate,
+        depositAmount: event.tenant.depositAmount,
+        depositPaidDate: event.tenant.depositPaidDate,
+        depositReceiver: event.tenant.depositReceiver,
+        contractFile: event.tenant.contractFile,
+        isActive: event.tenant.isActive,
+        createdAt: event.tenant.createdAt,
+        updatedAt: event.tenant.updatedAt,
       );
+
+      final result = await createTenant(CreateTenantParams(tenant: tenant));
 
       result.fold(
         (failure) => emit(TenantError(failure.message)),

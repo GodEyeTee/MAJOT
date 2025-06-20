@@ -1,120 +1,137 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../core/themes/app_spacing.dart';
-import '../../../../core/themes/theme_extensions.dart';
-import '../../../../services/rbac/permission_guard.dart';
-import '../bloc/room/room_bloc.dart';
-import '../widgets/room_card.dart';
-import '../widgets/room_status_filter.dart';
+import '../../domain/entities/room.dart';
 
-class RoomListPage extends StatelessWidget {
-  const RoomListPage({super.key});
+class MinimalRoomCard extends StatelessWidget {
+  final Room room;
+  final VoidCallback? onTap;
+
+  const MinimalRoomCard({super.key, required this.room, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('จัดการห้องพัก')),
-      floatingActionButton: PermissionGuard(
-        permissionId: 'manage_hotels',
-        child: FloatingActionButton(
-          onPressed: () => context.push('/hotel/create-room'),
-          backgroundColor: Theme.of(context).primaryColor,
-          elevation: 8,
-          child: const Icon(Icons.add, size: 28),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: AppSpacing.cardPadding,
-            child: const RoomStatusFilter(),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[200]!),
+            borderRadius: BorderRadius.circular(8),
           ),
-          Expanded(
-            child: BlocBuilder<RoomBloc, RoomState>(
-              builder: (context, state) {
-                if (state is RoomLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          child: Row(
+            children: [
+              // Room Number
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _getStatusColor(room.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    room.roomNumber,
+                    style: TextStyle(
+                      color: _getStatusColor(room.status),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
 
-                if (state is RoomError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(width: 16),
+
+              // Room Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text('เกิดข้อผิดพลาด', style: context.typography.h5),
-                        AppSpacing.verticalGapSm,
-                        Text(state.message),
-                        AppSpacing.verticalGapMd,
-                        ElevatedButton(
-                          onPressed: () {
-                            context.read<RoomBloc>().add(LoadRoomsEvent());
-                          },
-                          child: const Text('ลองใหม่'),
+                        Text(
+                          'ชั้น ${room.floor}',
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              room.status,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            room.status.displayName,
+                            style: TextStyle(
+                              color: _getStatusColor(room.status),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  );
-                }
-
-                if (state is RoomLoaded) {
-                  if (state.rooms.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.meeting_room_outlined,
-                            size: 64,
-                            color: context.customColors.textSecondary,
-                          ),
-                          AppSpacing.verticalGapMd,
-                          Text('ไม่พบห้องพัก', style: context.typography.h5),
-                          if (state.selectedStatus != null) ...[
-                            AppSpacing.verticalGapSm,
-                            Text(
-                              'สถานะ: ${state.selectedStatus!.displayName}',
-                              style: TextStyle(
-                                color: context.customColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  }
-
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      context.read<RoomBloc>().add(LoadRoomsEvent());
-                    },
-                    child: GridView.builder(
-                      padding: AppSpacing.screenPadding,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.85,
-                            crossAxisSpacing: AppSpacing.md,
-                            mainAxisSpacing: AppSpacing.md,
-                          ),
-                      itemCount: state.rooms.length,
-                      itemBuilder: (context, index) {
-                        final room = state.rooms[index];
-                        return RoomCard(
-                          room: room,
-                          onTap: () => context.push('/hotel/rooms/${room.id}'),
-                        );
-                      },
+                    const SizedBox(height: 4),
+                    Text(
+                      room.roomType,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
-                  );
-                }
+                  ],
+                ),
+              ),
 
-                return const SizedBox.shrink();
-              },
-            ),
+              // Price
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '฿${room.monthlyRent.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '/เดือน',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
+                ],
+              ),
+
+              // Arrow
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Color _getStatusColor(RoomStatus status) {
+    switch (status) {
+      case RoomStatus.available:
+        return Colors.green[600]!;
+      case RoomStatus.occupied:
+        return Colors.blue[600]!;
+      case RoomStatus.reserved:
+        return Colors.orange[600]!;
+      case RoomStatus.maintenanceVacant:
+      case RoomStatus.maintenanceOccupied:
+        return Colors.red[600]!;
+    }
   }
 }

@@ -1,7 +1,7 @@
-// lib/features/hotel/presentation/pages/create_tenant_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import '../../../../core/themes/app_spacing.dart';
 import '../../../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../../../features/auth/presentation/bloc/auth_state.dart';
@@ -86,7 +86,6 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
                         decoration: const InputDecoration(
                           labelText: 'อีเมล *',
                           prefixIcon: Icon(Icons.email),
-                          helperText: 'ถ้าไม่มีบัญชี ระบบจะสร้างให้อัตโนมัติ',
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -169,12 +168,19 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
                 ),
               ),
               AppSpacing.verticalGapLg,
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _createTenant,
-                  child: const Text('เพิ่มผู้เช่า'),
-                ),
+              BlocBuilder<TenantBloc, TenantState>(
+                builder: (context, state) {
+                  return SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: state is TenantSaving ? null : _createTenant,
+                      child:
+                          state is TenantSaving
+                              ? const CircularProgressIndicator()
+                              : const Text('เพิ่มผู้เช่า'),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -188,31 +194,33 @@ class _CreateTenantPageState extends State<CreateTenantPage> {
       final authState = context.read<AuthBloc>().state;
       if (authState is! Authenticated) return;
 
-      // สร้าง guest user ID ในรูปแบบ Firebase UID
-      final guestUid = 'guest_${DateTime.now().millisecondsSinceEpoch}';
+      // เก็บข้อมูลผู้เช่าใน JSON
+      final tenantInfo = {
+        'name': _nameController.text,
+        'email': _emailController.text,
+        'phone': _phoneController.text,
+        'created_by': authState.user!.email,
+        'created_at': DateTime.now().toIso8601String(),
+      };
 
       final tenant = Tenant(
         id: '',
         roomId: widget.roomId,
-        userId: guestUid, // ใช้ uid format
+        userId: authState.user!.id, // ใช้ ID ของ admin ที่สร้าง
         startDate: _startDate,
         depositAmount: double.parse(_depositController.text),
         depositPaidDate: DateTime.now(),
         depositReceiver: authState.user!.displayName ?? authState.user!.email,
+        contractFile: jsonEncode(tenantInfo), // เก็บข้อมูลผู้เช่าเป็น JSON
         isActive: true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      context.read<TenantBloc>().add(
-        CreateTenantWithUserEvent(
-          tenant: tenant,
-          userName: _nameController.text,
-          userEmail: _emailController.text,
-          userPhone:
-              _phoneController.text.isNotEmpty ? _phoneController.text : null,
-        ),
-      );
+      print('Creating tenant for room: ${widget.roomId}');
+      print('Tenant info: ${jsonEncode(tenantInfo)}');
+
+      context.read<TenantBloc>().add(CreateTenantEvent(tenant));
     }
   }
 }

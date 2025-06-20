@@ -30,6 +30,14 @@ class AppColors {
   static const Color darkOnSurface = Color(0xFFE0E0E0);
   static const Color darkOnError = Color(0xFF000000);
 
+  // Minimal Theme Colors
+  static const Color minimalBackground = Color(0xFFFAFAFA);
+  static const Color minimalSurface = Colors.white;
+  static const Color minimalBorder = Color(0xFFE0E0E0);
+  static const Color minimalText = Color(0xFF212121);
+  static const Color minimalTextSecondary = Color(0xFF757575);
+  static const Color minimalAccent = Color(0xFF212121);
+
   // Custom Colors (available in both themes)
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFF9800);

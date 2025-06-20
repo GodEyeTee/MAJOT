@@ -1,81 +1,121 @@
 import 'package:flutter/material.dart';
-import '../../../../core/themes/app_spacing.dart';
 import '../../domain/entities/room.dart';
 
-class RoomCard extends StatelessWidget {
+class MinimalRoomCard extends StatelessWidget {
   final Room room;
   final VoidCallback? onTap;
 
-  const RoomCard({super.key, required this.room, this.onTap});
+  const MinimalRoomCard({super.key, required this.room, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 120,
-              width: double.infinity,
-              color: _getStatusColor(room.status).withValues(alpha: 0.1),
-              child: Icon(
-                Icons.meeting_room,
-                size: 48,
-                color: _getStatusColor(room.status),
-              ),
-            ),
-            Padding(
-              padding: AppSpacing.cardPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ห้อง ${room.roomNumber}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  AppSpacing.verticalGapXs,
-                  Text(
-                    'ชั้น ${room.floor}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[200]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              // Room Number
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _getStatusColor(room.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    room.roomNumber,
+                    style: TextStyle(
+                      color: _getStatusColor(room.status),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
                   ),
-                  AppSpacing.verticalGapSm,
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                          vertical: AppSpacing.xxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(room.status),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          room.status.displayName,
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Room Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'ชั้น ${room.floor}',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
+                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  AppSpacing.verticalGapSm,
-                  Text(
-                    '฿${room.monthlyRent.toStringAsFixed(0)}/เดือน',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              room.status,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            room.status.displayName,
+                            style: TextStyle(
+                              color: _getStatusColor(room.status),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      room.roomType,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Price
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '฿${room.monthlyRent.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '/เดือน',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                 ],
               ),
-            ),
-          ],
+
+              // Arrow
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -84,14 +124,14 @@ class RoomCard extends StatelessWidget {
   Color _getStatusColor(RoomStatus status) {
     switch (status) {
       case RoomStatus.available:
-        return Colors.green;
+        return Colors.green[600]!;
       case RoomStatus.occupied:
-        return Colors.blue;
+        return Colors.blue[600]!;
       case RoomStatus.reserved:
-        return Colors.orange;
+        return Colors.orange[600]!;
       case RoomStatus.maintenanceVacant:
       case RoomStatus.maintenanceOccupied:
-        return Colors.red;
+        return Colors.red[600]!;
     }
   }
 }
