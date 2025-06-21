@@ -29,7 +29,6 @@ import 'features/auth/presentation/pages/login_page.dart';
 import 'features/theme/presentation/bloc/theme_bloc.dart';
 import 'features/theme/presentation/bloc/theme_state.dart';
 import 'screens/main_screen.dart';
-import 'features/hotel/presentation/pages/room_list_page.dart';
 
 class App extends StatefulWidget {
   const App({super.key});

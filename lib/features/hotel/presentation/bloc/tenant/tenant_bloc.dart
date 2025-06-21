@@ -63,27 +63,18 @@ class TenantBloc extends Bloc<TenantEvent, TenantState> {
     emit(TenantSaving());
 
     try {
-      // ตรวจสอบว่ามี tenant ที่ active อยู่แล้วหรือไม่
       final existingTenantResult = await getTenantByRoom(event.tenant.roomId);
 
-      existingTenantResult.fold(
-        (failure) {
-          // ไม่มี tenant เดิม หรือ error - ดำเนินการสร้างต่อ
-        },
-        (existingTenant) async {
-          if (existingTenant != null && existingTenant.isActive) {
-            // ถ้ามี tenant ที่ active อยู่ ให้ end tenancy ก่อน
-            await endTenancy(
-              EndTenancyParams(
-                tenantId: existingTenant.id,
-                endDate: DateTime.now(),
-              ),
-            );
-          }
-        },
-      );
-
-      // สร้าง tenant ใหม่
+      existingTenantResult.fold((failure) {}, (existingTenant) async {
+        if (existingTenant != null && existingTenant.isActive) {
+          await endTenancy(
+            EndTenancyParams(
+              tenantId: existingTenant.id,
+              endDate: DateTime.now(),
+            ),
+          );
+        }
+      });
       final result = await createTenant(
         CreateTenantParams(tenant: event.tenant),
       );
@@ -104,11 +95,10 @@ class TenantBloc extends Bloc<TenantEvent, TenantState> {
     emit(TenantSaving());
 
     try {
-      // ใช้ guest user ID โดยตรง ไม่ต้องสร้างในตาราง users
       final tenant = Tenant(
         id: event.tenant.id,
         roomId: event.tenant.roomId,
-        userId: event.tenant.userId, // ใช้ guest ID ที่สร้างไว้
+        userId: event.tenant.userId,
         startDate: event.tenant.startDate,
         endDate: event.tenant.endDate,
         depositAmount: event.tenant.depositAmount,
